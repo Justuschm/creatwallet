@@ -1,0 +1,15 @@
+.git
+.venv
+**/__pycache__
+*.egg-info
+build
+dist
+tests
+certs
+secrets
+*.p12
+*.pem
+*.cer
+*.key
+*.pkpass
+.env

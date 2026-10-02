@@ -1,0 +1,382 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>creatwallet</title>
+<style>
+  :root {
+    --bg: #f4f5f7; --panel: #ffffff; --text: #1c1c1e; --muted: #6e6e73; --line: #d9d9de;
+    --accent: #0a66d8; --err: #c62828; --warn: #b26a00; --info: #2a6f97; --code: #f7f7f9;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root { --bg: #111214; --panel: #1c1d20; --text: #ececf0; --muted: #9a9aa2; --line: #33343a;
+            --accent: #4c9bff; --err: #ff6b6b; --warn: #f0b04a; --info: #6cc4f0; --code: #15161a; }
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; font: 14px/1.45 -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+         background: var(--bg); color: var(--text); }
+  header { display: flex; flex-wrap: wrap; gap: 12px; align-items: center; padding: 12px 16px;
+           background: var(--panel); border-bottom: 1px solid var(--line); position: sticky; top: 0; z-index: 2; }
+  header h1 { font-size: 17px; margin: 0 12px 0 0; }
+  header .spacer { flex: 1; }
+  select, button, input { font: inherit; color: inherit; }
+  #template { max-width: min(420px, 100%); }
+  select, input[type=text] { padding: 6px 8px; border: 1px solid var(--line); border-radius: 8px; background: var(--panel); }
+  button { padding: 7px 14px; border-radius: 8px; border: 1px solid var(--line); background: var(--panel); cursor: pointer; }
+  button.primary { background: var(--accent); border-color: var(--accent); color: #fff; font-weight: 600; }
+  button:disabled { opacity: .5; cursor: not-allowed; }
+  main { display: grid; grid-template-columns: minmax(0, 1.25fr) minmax(320px, 400px); gap: 16px; padding: 16px; max-width: 1400px; margin: 0 auto; }
+  @media (max-width: 900px) { main { grid-template-columns: 1fr; } }
+  section.card { background: var(--panel); border: 1px solid var(--line); border-radius: 12px; padding: 14px; margin-bottom: 16px; }
+  section.card h2 { font-size: 14px; margin: 0 0 10px; text-transform: uppercase; letter-spacing: .04em; color: var(--muted); }
+  .grid2 { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 10px; }
+  label.f { display: flex; flex-direction: column; gap: 4px; font-size: 12px; color: var(--muted); }
+  label.f input { color: var(--text); }
+  .colorrow { display: flex; gap: 6px; align-items: center; }
+  .colorrow input[type=color] { width: 36px; height: 30px; padding: 0; border: 1px solid var(--line); border-radius: 6px; background: none; }
+  .colorrow input[type=text] { flex: 1; min-width: 0; }
+  textarea { width: 100%; min-height: 460px; font: 12.5px/1.5 ui-monospace, SFMono-Regular, Menlo, monospace;
+             background: var(--code); color: var(--text); border: 1px solid var(--line); border-radius: 8px; padding: 10px; resize: vertical; tab-size: 2; }
+  .images { display: grid; grid-template-columns: repeat(auto-fill, minmax(130px, 1fr)); gap: 10px; }
+  .img { border: 1px solid var(--line); border-radius: 8px; padding: 8px; font-size: 12px; display: flex; flex-direction: column; gap: 6px; }
+  .img .thumb { height: 64px; display: flex; align-items: center; justify-content: center;
+                background: repeating-conic-gradient(#8883 0% 25%, transparent 0% 50%) 50% / 12px 12px; border-radius: 4px; }
+  .img .thumb img { max-width: 100%; max-height: 64px; }
+  .img .name { word-break: break-all; font-weight: 600; }
+  .img .dim { color: var(--muted); }
+  .img button { padding: 2px 6px; font-size: 12px; }
+  .issues { list-style: none; padding: 0; margin: 0; max-height: 340px; overflow: auto; }
+  .issues li { padding: 6px 8px; border-left: 3px solid; margin-bottom: 6px; background: var(--code); border-radius: 0 6px 6px 0; font-size: 12.5px; }
+  .issues li.error { border-color: var(--err); } .issues li.warning { border-color: var(--warn); } .issues li.info { border-color: var(--info); }
+  .issues b { font-family: ui-monospace, monospace; font-weight: 600; }
+  .badge { font-size: 12px; padding: 2px 8px; border-radius: 99px; border: 1px solid var(--line); color: var(--muted); }
+  .badge.ok { color: #1b8a3a; border-color: #1b8a3a; } .badge.bad { color: var(--err); border-color: var(--err); }
+  .muted { color: var(--muted); font-size: 12px; }
+  /* preview */
+  .pass { border-radius: 14px; overflow: hidden; position: relative; min-height: 420px; box-shadow: 0 6px 24px #0003;
+          display: flex; flex-direction: column; padding: 12px 14px; gap: 10px; background-size: cover; background-position: center; }
+  .pass .row { display: flex; gap: 12px; justify-content: space-between; align-items: flex-start; }
+  .pass .row.left { justify-content: flex-start; }
+  .pass .fl { font-size: 10px; font-weight: 600; text-transform: uppercase; letter-spacing: .03em; }
+  .pass .fv { font-size: 15px; word-break: break-word; }
+  .pass .primary .fv { font-size: 30px; font-weight: 300; line-height: 1.1; }
+  .pass .logo { display: flex; align-items: center; gap: 8px; font-weight: 600; font-size: 15px; min-width: 0; }
+  .pass .logo img { max-height: 30px; max-width: 120px; }
+  .pass .strip { margin: 0 -14px; height: 110px; background-size: cover; background-position: center; }
+  .pass .barcode { margin-top: auto; align-self: center; background: #fff; color: #000; border-radius: 8px; padding: 8px 12px; text-align: center; font-size: 11px; }
+  .pass .barcode .code { width: 120px; height: 120px; margin: 0 auto 4px;
+          background: repeating-linear-gradient(90deg, #000 0 3px, #fff 3px 5px, #000 5px 6px, #fff 6px 9px); }
+  .pass .barcode .code.linear { height: 50px; width: 200px; }
+  .pass.poster { justify-content: flex-end; }
+  .pass.poster .poster-top { position: absolute; top: 12px; left: 14px; right: 14px; display: flex; justify-content: space-between; }
+  .pass.poster .poster-bottom { background: #0008; backdrop-filter: blur(16px); margin: 0 -14px -12px; padding: 12px 14px; color: #fff; }
+  .pass.poster .event { font-size: 22px; font-weight: 700; line-height: 1.15; }
+  .tabs { display: flex; gap: 4px; margin-bottom: 10px; flex-wrap: wrap; }
+  .tabs button { padding: 4px 10px; font-size: 12px; }
+  .tabs button.on { background: var(--accent); border-color: var(--accent); color: #fff; }
+  .toast { position: fixed; bottom: 16px; left: 50%; transform: translateX(-50%); background: var(--text); color: var(--bg);
+           padding: 10px 16px; border-radius: 10px; opacity: 0; transition: opacity .2s; pointer-events: none; max-width: 90vw; }
+  .toast.show { opacity: 1; }
+  .check { display: flex; gap: 6px; align-items: center; font-size: 13px; }
+</style>
+</head>
+<body>
+<header>
+  <h1>creatwallet</h1>
+  <select id="template" title="Vorlage"></select>
+  <button id="loadTemplate">Vorlage laden</button>
+  <label class="check"><input type="file" id="openPkpass" accept=".pkpass" hidden>
+    <button id="openBtn" type="button">.pkpass öffnen</button></label>
+  <span class="spacer"></span>
+  <span id="signStatus" class="badge">…</span>
+  <label class="check"><input type="checkbox" id="newSerial"> neue Seriennummer</label>
+  <button class="primary" id="build">.pkpass erstellen</button>
+</header>
+
+<main>
+  <div>
+    <section class="card">
+      <h2>Grunddaten</h2>
+      <div class="grid2" id="basics"></div>
+    </section>
+    <section class="card">
+      <h2>pass.json</h2>
+      <div class="tabs" id="snippets"></div>
+      <textarea id="json" spellcheck="false"></textarea>
+      <div class="muted" id="jsonState"></div>
+    </section>
+    <section class="card">
+      <h2>Bilder</h2>
+      <p class="muted">PNG-Dateien. Namen: icon, logo, primaryLogo, secondaryLogo, strip, thumbnail, background, artwork, footer – jeweils mit @2x / @3x.
+        Lokalisierte Bilder als <code>de.lproj/logo@2x.png</code>.</p>
+      <div class="images" id="images"></div>
+      <p><input type="file" id="addImages" accept="image/png" multiple></p>
+    </section>
+  </div>
+  <div>
+    <section class="card">
+      <h2>Vorschau <span class="muted">(vereinfacht)</span></h2>
+      <div class="tabs" id="previewTabs"></div>
+      <div id="preview"></div>
+    </section>
+    <section class="card">
+      <h2>Prüfung <span id="issueCount" class="badge"></span></h2>
+      <ul class="issues" id="issues"></ul>
+    </section>
+  </div>
+</main>
+<div class="toast" id="toast"></div>
+
+<script>
+const $ = (id) => document.getElementById(id);
+const state = { pass: null, images: {}, status: {}, previewStyle: null };
+let validateTimer = null;
+
+const BASICS = [
+  ["description", "Beschreibung *"], ["organizationName", "Organisation *"],
+  ["passTypeIdentifier", "Pass Type ID *"], ["teamIdentifier", "Team ID *"],
+  ["serialNumber", "Seriennummer *"], ["logoText", "Logo-Text"],
+  ["backgroundColor", "Hintergrundfarbe", "color"], ["foregroundColor", "Textfarbe", "color"],
+  ["labelColor", "Label-Farbe", "color"],
+];
+
+const SNIPPETS = {
+  "+ Barcode": (p) => { (p.barcodes ||= []).push({ format: "PKBarcodeFormatQR", message: "123456", messageEncoding: "iso-8859-1", altText: "123456" }); },
+  "+ Ort": (p) => { (p.locations ||= []).push({ latitude: 53.5511, longitude: 9.9937, relevantText: "Du bist in der Nähe!" }); },
+  "+ Zeitraum": (p) => { (p.relevantDates ||= []).push({ startDate: "2026-12-01T18:00+01:00", endDate: "2026-12-01T23:00+01:00" }); },
+  "+ Rückseitenfeld": (p) => { const s = mainStyle(p); if (s) (p[s].backFields ||= []).push({ key: "back" + Date.now(), label: "Info", value: "Text" }); },
+  "+ Web-Service": (p) => { p.webServiceURL = "https://example.com/passes/"; p.authenticationToken = randomToken(); },
+  "Poster aktivieren": (p) => {
+    if (p.eventTicket) { p.preferredStyleSchemes = ["posterEventTicket", "eventTicket"]; p.eventLogoText ||= p.logoText || ""; p.semantics ||= {};
+      for (const k of ["eventName", "venueName", "venueRegionName", "venueRoom"]) p.semantics[k] ||= ""; }
+    else if (p.boardingPass) { p.preferredStyleSchemes = ["semanticBoardingPass", "boardingPass"]; p.boardingPass.transitType = "PKTransitTypeAir"; }
+    else { const s = mainStyle(p) || "generic"; p.posterGeneric = JSON.parse(JSON.stringify(p[s] || {})); }
+  },
+};
+
+function randomToken() { return Array.from(crypto.getRandomValues(new Uint8Array(16)), b => b.toString(16).padStart(2, "0")).join(""); }
+function mainStyle(p) { return ["boardingPass", "coupon", "eventTicket", "generic", "storeCard", "posterGeneric"].find(s => p && p[s]); }
+function toast(msg) { const t = $("toast"); t.textContent = msg; t.classList.add("show"); clearTimeout(t._h); t._h = setTimeout(() => t.classList.remove("show"), 3500); }
+function esc(s) { return String(s ?? "").replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c])); }
+function rgbToHex(v) { const m = /rgb\(\s*(\d+)\s*,\s*(\d+)\s*,\s*(\d+)\s*\)/.exec(v || ""); return m ? "#" + m.slice(1).map(x => (+x).toString(16).padStart(2, "0")).join("") : "#000000"; }
+function hexToRgb(h) { const n = parseInt(h.slice(1), 16); return `rgb(${n >> 16}, ${(n >> 8) & 255}, ${n & 255})`; }
+
+async function api(path, opts = {}) {
+  const r = await fetch(path, opts);
+  const ct = r.headers.get("content-type") || "";
+  if (ct.includes("json")) { const j = await r.json(); if (!r.ok) throw Object.assign(new Error(j.error || r.statusText), { data: j }); return j; }
+  if (!r.ok) throw new Error(r.statusText);
+  return r;
+}
+
+async function init() {
+  state.status = await api("/api/status");
+  const s = $("signStatus");
+  if (state.status.canSign) { s.textContent = "Zertifikat: " + (state.status.passTypeIdentifier || "geladen"); s.className = "badge ok"; }
+  else { s.textContent = "kein Zertifikat – nur Editor"; s.className = "badge bad"; $("build").disabled = true; $("build").title = "Server mit --p12 und --wwdr starten"; }
+  const templates = await api("/api/templates");
+  $("template").innerHTML = templates.map(t => `<option value="${t.name}">${esc(t.title)} (iOS ${t.minIOS}+)</option>`).join("");
+  $("template").value = "posterEventTicket";
+  for (const name of Object.keys(SNIPPETS)) {
+    const b = document.createElement("button"); b.textContent = name;
+    b.onclick = () => { if (!state.pass) return; SNIPPETS[name](state.pass); setPass(state.pass); };
+    $("snippets").appendChild(b);
+  }
+  await loadTemplate();
+}
+
+async function loadTemplate() {
+  const t = await api("/api/template/" + $("template").value);
+  state.images = t.images; state.previewStyle = null;
+  setPass(t.pass);
+  renderImages();
+}
+
+function setPass(p, fromEditor = false) {
+  state.pass = p;
+  if (!fromEditor) $("json").value = JSON.stringify(p, null, 2);
+  renderBasics(); renderPreview(); scheduleValidate();
+}
+
+function renderBasics() {
+  const p = state.pass || {};
+  $("basics").innerHTML = BASICS.map(([k, label, type]) => type === "color"
+    ? `<label class="f">${label}<span class="colorrow"><input type="color" data-k="${k}" value="${rgbToHex(p[k])}"><input type="text" data-k="${k}" value="${esc(p[k])}" placeholder="rgb(0, 0, 0)"></span></label>`
+    : `<label class="f">${label}<input type="text" data-k="${k}" value="${esc(p[k])}"></label>`).join("");
+  $("basics").querySelectorAll("input").forEach(inp => inp.addEventListener("input", () => {
+    const k = inp.dataset.k; let val = inp.value;
+    if (inp.type === "color") val = hexToRgb(val);
+    if (val === "") delete state.pass[k]; else state.pass[k] = val;
+    $("json").value = JSON.stringify(state.pass, null, 2);
+    if (inp.type === "color") { const t = inp.parentElement.querySelector("input[type=text]"); t.value = val; }
+    renderPreview(); scheduleValidate();
+  }));
+}
+
+$("json").addEventListener("input", () => {
+  try { const p = JSON.parse($("json").value); $("jsonState").textContent = ""; setPass(p, true); }
+  catch (e) { $("jsonState").textContent = "JSON-Fehler: " + e.message; }
+});
+
+function renderImages() {
+  const names = Object.keys(state.images).sort();
+  $("images").innerHTML = names.map(n => `<div class="img"><div class="thumb"><img src="data:image/png;base64,${state.images[n]}" data-n="${esc(n)}"></div>
+    <div class="name">${esc(n)}</div><div class="dim" data-dim="${esc(n)}"></div><button data-del="${esc(n)}">Entfernen</button></div>`).join("")
+    || `<p class="muted">Noch keine Bilder.</p>`;
+  $("images").querySelectorAll("img").forEach(img => img.onload = () => {
+    $("images").querySelector(`[data-dim="${CSS.escape(img.dataset.n)}"]`).textContent = `${img.naturalWidth} × ${img.naturalHeight} px`; });
+  $("images").querySelectorAll("[data-del]").forEach(b => b.onclick = () => { delete state.images[b.dataset.del]; renderImages(); renderPreview(); scheduleValidate(); });
+}
+
+$("addImages").addEventListener("change", async (e) => {
+  for (const file of e.target.files) {
+    let name = file.name;
+    const target = prompt("Dateiname im Pass (z. B. logo@2x.png, artwork@3x.png):", name);
+    if (!target) continue;
+    const buf = new Uint8Array(await file.arrayBuffer());
+    let bin = ""; for (let i = 0; i < buf.length; i += 0x8000) bin += String.fromCharCode(...buf.subarray(i, i + 0x8000));
+    state.images[target] = btoa(bin);
+  }
+  e.target.value = ""; renderImages(); renderPreview(); scheduleValidate();
+});
+
+function img(name) {
+  for (const s of ["@3x", "@2x", ""]) { const d = state.images[name + s + ".png"]; if (d) return "data:image/png;base64," + d; }
+  return null;
+}
+
+function fieldHtml(f, cls = "") {
+  let v = f.value;
+  if (f.currencyCode && typeof v === "number") v = new Intl.NumberFormat("de-DE", { style: "currency", currency: f.currencyCode }).format(v);
+  else if ((f.dateStyle || f.timeStyle) && typeof v === "string") {
+    const d = new Date(v); const o = {};
+    const map = { PKDateStyleShort: "short", PKDateStyleMedium: "medium", PKDateStyleLong: "long", PKDateStyleFull: "full" };
+    if (map[f.dateStyle]) o.dateStyle = map[f.dateStyle]; if (map[f.timeStyle]) o.timeStyle = map[f.timeStyle];
+    if (!isNaN(d)) v = new Intl.DateTimeFormat("de-DE", o).format(d);
+  }
+  const align = { PKTextAlignmentRight: "right", PKTextAlignmentCenter: "center" }[f.textAlignment] || "left";
+  return `<div class="${cls}" style="text-align:${align}"><div class="fl">${esc(f.label)}</div><div class="fv">${esc(v)}</div></div>`;
+}
+
+function availableViews(p) {
+  const views = [];
+  const schemes = p.preferredStyleSchemes || [];
+  if (p.posterGeneric) views.push(["posterGeneric", "Poster Generic (iOS 27)"]);
+  if (p.eventTicket && schemes.includes("posterEventTicket")) views.push(["posterEvent", "Poster-Ticket (iOS 26)"]);
+  if (p.boardingPass && schemes.includes("semanticBoardingPass")) views.push(["semanticBoarding", "Semantisch (iOS 26)"]);
+  const legacy = ["boardingPass", "coupon", "eventTicket", "generic", "storeCard"].find(s => p[s]);
+  if (legacy) views.push([legacy, "Klassisch / Fallback"]);
+  return views;
+}
+
+function renderPreview() {
+  const p = state.pass; if (!p) return;
+  const views = availableViews(p);
+  if (!views.find(v => v[0] === state.previewStyle)) state.previewStyle = views[0]?.[0];
+  $("previewTabs").innerHTML = views.map(([k, l]) => `<button data-v="${k}" class="${k === state.previewStyle ? "on" : ""}">${l}</button>`).join("");
+  $("previewTabs").querySelectorAll("button").forEach(b => b.onclick = () => { state.previewStyle = b.dataset.v; renderPreview(); });
+  const v = state.previewStyle;
+  const bg = p.backgroundColor || "rgb(240,240,240)", fg = p.foregroundColor || "rgb(0,0,0)", lc = p.labelColor || fg;
+  const sem = p.semantics || {};
+  const code = (p.barcodes && p.barcodes[0]) || p.barcode;
+  const barcode = code ? `<div class="barcode"><div class="code ${/QR|Aztec/.test(code.format) ? "" : "linear"}"></div>${esc(code.altText || code.format.replace("PKBarcodeFormat", ""))}</div>` : "";
+  const fields = (style, group, cls) => ((p[style] || {})[group] || []).map(f => fieldHtml(f, cls)).join("");
+  let html;
+  if (v === "posterEvent" || v === "posterGeneric") {
+    const art = img("artwork"), plogo = img("primaryLogo"), slogo = img("secondaryLogo");
+    const style = v === "posterGeneric" ? "posterGeneric" : "eventTicket";
+    let title, sub;
+    if (v === "posterEvent") {
+      title = sem.homeTeamAbbreviation ? `${esc(sem.homeTeamAbbreviation)} vs ${esc(sem.awayTeamAbbreviation)}` : esc(sem.eventName || p.eventLogoText);
+      sub = [sem.venueName, sem.venueRoom, sem.eventStartDate && new Date(sem.eventStartDate).toLocaleString("de-DE", { dateStyle: "medium", timeStyle: "short" })].filter(Boolean).map(esc).join(" · ");
+      const seat = (sem.seats || [])[0];
+      if (seat) sub += `<div style="margin-top:6px;border-top:4px solid ${esc(seat.seatSectionColor || "transparent")};padding-top:6px">` +
+        [["Bereich", seat.seatSection], ["Reihe", seat.seatRow], ["Platz", seat.seatNumber]].filter(x => x[1]).map(([l, x]) => `<span style="margin-right:14px"><span class="fl">${l}</span> ${esc(x)}</span>`).join("") + "</div>";
+    } else {
+      title = fields(style, "primaryFields", "");
+      sub = `<div class="row">${fields(style, "footerFields", "")}</div>`;
+    }
+    html = `<div class="pass poster" style="background-color:${bg};${art ? `background-image:url(${art});` : ""}color:${fg}">
+      <div class="poster-top"><div class="logo">${plogo ? `<img src="${plogo}">` : ""}<span>${esc(v === "posterEvent" ? p.eventLogoText : p.logoText)}</span></div>
+      <div style="text-align:right">${fields(style, "headerFields", "")}</div></div>
+      <div class="poster-bottom"><div class="event">${title}</div><div class="muted" style="color:#ddd">${sub}</div>
+      ${slogo ? `<div style="text-align:right"><img src="${slogo}" style="max-height:14px"></div>` : ""}</div></div>`;
+  } else if (v === "semanticBoarding") {
+    const n = sem.passengerName || {};
+    const t = (d) => d ? new Date(d).toLocaleTimeString("de-DE", { hour: "2-digit", minute: "2-digit", timeZone: sem.departureLocationTimeZone || undefined }) : "–";
+    html = `<div class="pass" style="background:${bg};color:${fg}">
+      <div class="row"><div class="logo">${img("primaryLogo") ? `<img src="${img("primaryLogo")}">` : ""}${esc(sem.transitProvider || p.logoText)}</div>
+        <div style="text-align:right"><div class="fl" style="color:${lc}">Flug</div><div class="fv">${esc(sem.airlineCode)}${esc(sem.flightNumber)}</div></div></div>
+      <div class="row primary"><div><div class="fl" style="color:${lc}">${esc(sem.departureCityName)}</div><div class="fv">${esc(sem.departureAirportCode)}</div><div>${t(sem.originalDepartureDate)}</div></div>
+        <div style="align-self:center;font-size:22px">✈︎</div>
+        <div style="text-align:right"><div class="fl" style="color:${lc}">${esc(sem.destinationCityName)}</div><div class="fv">${esc(sem.destinationAirportCode)}</div><div>${t(sem.originalArrivalDate)}</div></div></div>
+      <div><div class="fv" style="font-weight:600">${esc([n.givenName, n.familyName].filter(Boolean).join(" "))}</div>
+        <div>${[sem.ticketFareClass, sem.membershipProgramStatus, ...(sem.passengerServiceSSRs || [])].filter(Boolean).map(b => `<span class="badge" style="color:${fg};border-color:${lc};margin-right:4px">${esc(b)}</span>`).join("")}</div></div>
+      <div class="row left">${[["Boarding", t(sem.originalBoardingDate)], ["Gate", sem.departureGate], ["Gruppe", sem.boardingGroup || sem.boardingZone], ["Sitz", (sem.seats || [])[0]?.seatNumber]]
+        .filter(x => x[1]).map(([l, x]) => `<div><div class="fl" style="color:${lc}">${l}</div><div class="fv">${esc(x)}</div></div>`).join("")}</div>
+      ${barcode}</div>`;
+  } else if (v) {
+    const s = p[v] || {};
+    const strip = img("strip"), thumb = img("thumbnail"), back = v === "eventTicket" ? img("background") : null, logo = img("logo");
+    const label = (h) => h.replaceAll('class="fl"', `class="fl" style="color:${lc}"`);
+    let prim;
+    if (v === "boardingPass") {
+      const icon = { PKTransitTypeAir: "✈︎", PKTransitTypeTrain: "🚆", PKTransitTypeBus: "🚌", PKTransitTypeBoat: "⛴" }[s.transitType] || "→";
+      const [from, to] = s.primaryFields || [];
+      prim = `<div class="row primary">${from ? fieldHtml(from) : ""}<div style="align-self:center;font-size:22px">${icon}</div>${to ? fieldHtml({ ...to, textAlignment: "PKTextAlignmentRight" }) : ""}</div>`;
+    } else {
+      prim = `<div class="row primary"><div style="flex:1">${fields(v, "primaryFields", "")}</div>${thumb && (v === "generic" || v === "eventTicket") ? `<img src="${thumb}" style="max-width:70px;max-height:70px;border-radius:6px">` : ""}</div>`;
+    }
+    html = `<div class="pass" style="background-color:${bg};${back ? `background-image:linear-gradient(#0006,#0006),url(${back});` : ""}color:${fg}">
+      <div class="row"><div class="logo">${logo ? `<img src="${logo}">` : ""}<span>${esc(p.logoText)}</span></div><div class="row">${label(fields(v, "headerFields", ""))}</div></div>
+      ${strip && (v === "coupon" || v === "storeCard") ? `<div class="strip" style="background-image:url(${strip})">${label(fields(v, "primaryFields", "primary")).replace('<div class="primary"', '<div class="primary" style="padding:14px"')}</div>` : label(prim)}
+      ${v === "boardingPass" ? `<div class="row left">${label(fields(v, "auxiliaryFields", ""))}</div><div class="row left">${label(fields(v, "secondaryFields", ""))}</div>`
+        : `<div class="row left">${label(fields(v, "secondaryFields", ""))}</div><div class="row left">${label(fields(v, "auxiliaryFields", ""))}</div>`}
+      ${barcode}</div>`;
+  } else html = `<p class="muted">Kein Pass-Stil gefunden.</p>`;
+  $("preview").innerHTML = html;
+}
+
+function scheduleValidate() { clearTimeout(validateTimer); validateTimer = setTimeout(runValidate, 300); }
+async function runValidate() {
+  try { const r = await api("/api/validate", { method: "POST", body: JSON.stringify({ pass: state.pass, images: state.images }) }); showIssues(r.issues); }
+  catch (e) { showIssues([{ level: "error", path: "", message: e.message }]); }
+}
+function showIssues(issues) {
+  const order = { error: 0, warning: 1, info: 2 };
+  issues.sort((a, b) => order[a.level] - order[b.level]);
+  const n = (l) => issues.filter(i => i.level === l).length;
+  $("issueCount").textContent = `${n("error")} Fehler · ${n("warning")} Warnungen · ${n("info")} Hinweise`;
+  $("issueCount").className = "badge " + (n("error") ? "bad" : "ok");
+  $("issues").innerHTML = issues.map(i => `<li class="${i.level}"><b>${esc(i.path)}</b><br>${esc(i.message)}</li>`).join("") || `<li class="info">Alles in Ordnung.</li>`;
+}
+
+$("loadTemplate").onclick = () => { if (!state.pass || confirm("Aktuellen Pass verwerfen?")) loadTemplate(); };
+$("openBtn").onclick = () => $("openPkpass").click();
+$("openPkpass").addEventListener("change", async (e) => {
+  const f = e.target.files[0]; if (!f) return;
+  try {
+    const r = await api("/api/inspect", { method: "POST", body: await f.arrayBuffer() });
+    state.images = r.images; state.previewStyle = null; setPass(r.pass); renderImages();
+    toast(r.problems.length ? "Probleme: " + r.problems.join("; ") : `${f.name} geladen (Signatur: ${r.certificates?.length || 0} Zertifikate)`);
+  } catch (err) { toast("Fehler: " + err.message); }
+  e.target.value = "";
+});
+
+$("build").onclick = async () => {
+  try {
+    const r = await fetch("/api/build", { method: "POST", body: JSON.stringify({ pass: state.pass, images: state.images, newSerial: $("newSerial").checked }) });
+    if (!r.ok) { const j = await r.json(); if (j.issues) showIssues(j.issues); throw new Error(j.error); }
+    const blob = await r.blob();
+    const name = /filename="([^"]+)"/.exec(r.headers.get("content-disposition") || "")?.[1] || "pass.pkpass";
+    const a = document.createElement("a"); a.href = URL.createObjectURL(blob); a.download = name; a.click();
+    setTimeout(() => URL.revokeObjectURL(a.href), 5000);
+    toast("Pass erstellt: " + name + " – per AirDrop/Mail/Safari aufs iPhone");
+  } catch (e) { toast("Build fehlgeschlagen: " + e.message); }
+};
+
+init().catch(e => toast("Start fehlgeschlagen: " + e.message));
+</script>
+</body>
+</html>

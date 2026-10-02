@@ -1,0 +1,13 @@
+__pycache__/
+*.egg-info/
+build/
+dist/
+.venv/
+*.pkpass
+# Zertifikate niemals einchecken
+*.p12
+*.pem
+*.cer
+*.key
+certs/
+.env

@@ -1,0 +1,20 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "creatwallet"
+version = "1.0.0"
+description = "Apple Wallet Pässe (.pkpass) erstellen, prüfen und signieren - inkl. Poster-Event-Tickets, semantischer Boarding-Pässe und Poster-Generic-Pässe"
+readme = "README.md"
+requires-python = ">=3.9"
+dependencies = ["cryptography>=41"]
+
+[project.scripts]
+creatwallet = "creatwallet.cli:main"
+
+[tool.setuptools]
+packages = ["creatwallet"]
+
+[tool.setuptools.package-data]
+creatwallet = ["web/*.html"]

@@ -1,0 +1,27 @@
+# Start:   docker compose up -d --build
+# Logs:    docker compose logs -f
+#
+# Vorher:  Zertifikate nach ./certs legen (siehe README, Abschnitt Docker)
+#          und .env aus .env.example anlegen.
+services:
+  creatwallet:
+    build: .
+    image: creatwallet:latest
+    container_name: creatwallet
+    restart: unless-stopped
+    ports:
+      # Nur lokal erreichbar - von außen über einen Reverse-Proxy mit HTTPS freigeben.
+      # Direkt ins Netz (nicht empfohlen):  "8080:8080"
+      - "127.0.0.1:8080:8080"
+    environment:
+      CREATWALLET_P12: /certs/pass.p12
+      CREATWALLET_WWDR: /certs/AppleWWDRCAG4.cer
+      CREATWALLET_PASSWORD: ${CREATWALLET_PASSWORD:?Bitte CREATWALLET_PASSWORD in .env setzen}
+      CREATWALLET_AUTH: ${CREATWALLET_AUTH:?Bitte CREATWALLET_AUTH (benutzer:passwort) in .env setzen}
+    volumes:
+      - ./certs:/certs:ro
+    read_only: true
+    tmpfs:
+      - /tmp
+    security_opt:
+      - no-new-privileges:true
