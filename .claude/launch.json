@@ -1,0 +1,11 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "creatwallet-dev",
+      "runtimeExecutable": "/bin/sh",
+      "runtimeArgs": ["-c", "set -a; . ./.env.dev; set +a; exec .venv/bin/creatwallet serve --port 8080"],
+      "port": 8080
+    }
+  ]
+}

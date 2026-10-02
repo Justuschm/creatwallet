@@ -28,8 +28,9 @@
   button:disabled { opacity: .5; cursor: not-allowed; }
   main { display: grid; grid-template-columns: minmax(0, 1.25fr) minmax(320px, 400px); gap: 16px; padding: 16px; max-width: 1400px; margin: 0 auto; }
   @media (max-width: 900px) { main { grid-template-columns: 1fr; } }
-  section.card { background: var(--panel); border: 1px solid var(--line); border-radius: 12px; padding: 14px; margin-bottom: 16px; }
-  section.card h2 { font-size: 14px; margin: 0 0 10px; text-transform: uppercase; letter-spacing: .04em; color: var(--muted); }
+  @media (min-width: 901px) { main > div:last-child { position: sticky; top: 100px; align-self: start; max-height: calc(100vh - 110px); overflow: auto; } }
+  .card { background: var(--panel); border: 1px solid var(--line); border-radius: 12px; padding: 14px; margin-bottom: 16px; }
+  .card h2 { font-size: 14px; margin: 0 0 10px; text-transform: uppercase; letter-spacing: .04em; color: var(--muted); }
   .grid2 { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 10px; }
   label.f { display: flex; flex-direction: column; gap: 4px; font-size: 12px; color: var(--muted); }
   label.f input { color: var(--text); }
@@ -53,6 +54,7 @@
   .badge { font-size: 12px; padding: 2px 8px; border-radius: 99px; border: 1px solid var(--line); color: var(--muted); }
   .badge.ok { color: #1b8a3a; border-color: #1b8a3a; } .badge.bad { color: var(--err); border-color: var(--err); }
   .muted { color: var(--muted); font-size: 12px; }
+  a { color: var(--accent); }
   /* preview */
   .pass { border-radius: 14px; overflow: hidden; position: relative; min-height: 420px; box-shadow: 0 6px 24px #0003;
           display: flex; flex-direction: column; padding: 12px 14px; gap: 10px; background-size: cover; background-position: center; }
@@ -79,6 +81,34 @@
            padding: 10px 16px; border-radius: 10px; opacity: 0; transition: opacity .2s; pointer-events: none; max-width: 90vw; }
   .toast.show { opacity: 1; }
   .check { display: flex; gap: 6px; align-items: center; font-size: 13px; }
+  /* einfache Bearbeitung */
+  h3.sub { font-size: 13px; margin: 16px 0 8px; display: flex; align-items: center; gap: 8px; }
+  h3.sub:first-child { margin-top: 0; }
+  h3.sub .muted { font-weight: normal; }
+  .frow { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 2fr) auto; gap: 6px; margin-bottom: 6px; align-items: start; }
+  .frow input, .frow textarea { width: 100%; min-width: 0; }
+  .frow textarea { min-height: 54px; font: inherit; padding: 6px 8px; }
+  .frow .btns { display: flex; gap: 4px; }
+  .frow .btns button, button.small { padding: 4px 8px; font-size: 12px; }
+  .empty { font-size: 12px; color: var(--muted); margin: 0 0 6px; }
+  input[type=datetime-local], input[type=number], input[type=url], input[type=email], input[type=tel] {
+    padding: 6px 8px; border: 1px solid var(--line); border-radius: 8px; background: var(--panel); font: inherit; color: var(--text); min-width: 0; }
+  label.f select { color: var(--text); }
+  .hint { background: var(--code); border-left: 3px solid var(--info); padding: 8px 10px; border-radius: 0 6px 6px 0; font-size: 12.5px; margin-bottom: 10px; }
+  details.card > summary { cursor: pointer; font-size: 14px; text-transform: uppercase; letter-spacing: .04em; color: var(--muted); font-weight: 700; }
+  details.card[open] > summary { margin-bottom: 10px; }
+  /* Event-Guide-Vorschau */
+  .guide { border-radius: 14px; background: var(--code); border: 1px solid var(--line); padding: 14px; display: flex; flex-direction: column; gap: 12px; }
+  .guide .gh { font-size: 18px; font-weight: 700; line-height: 1.2; }
+  .guide .gbox { background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 10px 12px; }
+  .guide .gbox .t { font-size: 11px; text-transform: uppercase; letter-spacing: .04em; color: var(--muted); font-weight: 600; margin-bottom: 6px; }
+  .guide .map { height: 90px; border-radius: 8px; background: linear-gradient(135deg, #cfe3c8, #b9d4ea); display: flex; align-items: center; justify-content: center; color: #234; font-size: 26px; margin-bottom: 8px; }
+  .guide .kv { display: flex; justify-content: space-between; gap: 10px; padding: 3px 0; font-size: 13px; }
+  .guide .kv span:first-child { color: var(--muted); }
+  .guide .actions { display: grid; grid-template-columns: repeat(auto-fill, minmax(110px, 1fr)); gap: 6px; }
+  .guide .actions a { display: flex; flex-direction: column; align-items: center; gap: 2px; padding: 8px 4px; border-radius: 10px; background: var(--panel);
+                      border: 1px solid var(--line); color: var(--text); text-decoration: none; font-size: 12px; text-align: center; }
+  .guide .actions a b { font-size: 18px; }
 </style>
 </head>
 <body>
@@ -101,11 +131,19 @@
       <div class="grid2" id="basics"></div>
     </section>
     <section class="card">
-      <h2>pass.json</h2>
+      <h2>Inhalte</h2>
+      <div id="content"></div>
+    </section>
+    <section class="card" id="guideCard" hidden>
+      <h2>Event-Guide &amp; Veranstaltungsort</h2>
+      <div id="guide"></div>
+    </section>
+    <details class="card" id="jsonCard">
+      <summary>Für Fortgeschrittene: pass.json</summary>
       <div class="tabs" id="snippets"></div>
       <textarea id="json" spellcheck="false"></textarea>
       <div class="muted" id="jsonState"></div>
-    </section>
+    </details>
     <section class="card">
       <h2>Bilder</h2>
       <p class="muted">PNG-Dateien. Namen: icon, logo, primaryLogo, secondaryLogo, strip, thumbnail, background, artwork, footer – jeweils mit @2x / @3x.
@@ -161,6 +199,237 @@ function toast(msg) { const t = $("toast"); t.textContent = msg; t.classList.add
 function esc(s) { return String(s ?? "").replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c])); }
 function rgbToHex(v) { const m = /rgb\(\s*(\d+)\s*,\s*(\d+)\s*,\s*(\d+)\s*\)/.exec(v || ""); return m ? "#" + m.slice(1).map(x => (+x).toString(16).padStart(2, "0")).join("") : "#000000"; }
 function hexToRgb(h) { const n = parseInt(h.slice(1), 16); return `rgb(${n >> 16}, ${(n >> 8) & 255}, ${n & 255})`; }
+function getPath(obj, path) { return path.reduce((o, k) => (o == null ? undefined : o[k]), obj); }
+function setPath(obj, path, val) {
+  let o = obj; for (const k of path.slice(0, -1)) o = (o[k] ??= {});
+  const last = path[path.length - 1];
+  if (val === undefined || val === "") delete o[last]; else o[last] = val;
+}
+// "2026-11-20T18:30+01:00" <-> "2026-11-20T18:30" (datetime-local); die Zeitzone des alten Werts bleibt erhalten.
+function toLocalInput(v) { return /^(\d{4}-\d{2}-\d{2}T\d{2}:\d{2})/.exec(v || "")?.[1] || ""; }
+function fromLocalInput(v, old) {
+  if (!v) return "";
+  let off = /([+-]\d{2}:\d{2}|Z)$/.exec(old || "")?.[1];
+  if (!off) { const m = -new Date(v).getTimezoneOffset(), a = Math.abs(m);
+    off = (m < 0 ? "-" : "+") + String(Math.floor(a / 60)).padStart(2, "0") + ":" + String(a % 60).padStart(2, "0"); }
+  return v + off;
+}
+function isDateValue(v) { return typeof v === "string" && /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}/.test(v); }
+function safeHref(u) { return /^(https?:|tel:|mailto:)/i.test(u || "") ? esc(u) : null; }
+// Nach einer Änderung über die Formulare: JSON, Vorschau und Prüfung nachziehen (Formulare bleiben stehen, damit der Fokus bleibt).
+function afterEdit() { $("json").value = JSON.stringify(state.pass, null, 2); $("jsonState").textContent = ""; renderPreview(); scheduleValidate(); }
+
+// ---------------------------------------------------------------- Inhalte (einfache Bearbeitung)
+
+const FIELD_GROUPS = {
+  headerFields: ["Kopfzeile", "klein, oben rechts"],
+  primaryFields: ["Hauptfeld", "groß hervorgehoben"],
+  secondaryFields: ["Zweite Zeile", ""],
+  auxiliaryFields: ["Dritte Zeile", ""],
+  footerFields: ["Fußzeile", ""],
+  additionalInfoFields: ["Weitere Infos", "erscheinen im Event-Guide"],
+  backFields: ["Rückseite / Details", "hinter dem ⓘ-Symbol"],
+};
+const STYLE_GROUPS = {
+  eventTicket: ["headerFields", "primaryFields", "secondaryFields", "auxiliaryFields", "additionalInfoFields", "backFields"],
+  posterGeneric: ["headerFields", "primaryFields", "secondaryFields", "auxiliaryFields", "footerFields", "backFields"],
+};
+const STYLE_NAMES = { posterGeneric: "Poster-Ansicht", boardingPass: "Klassische Ansicht", coupon: "Klassische Ansicht",
+  eventTicket: "Ticket", generic: "Klassische Ansicht", storeCard: "Klassische Ansicht" };
+const BARCODE_NAMES = { PKBarcodeFormatQR: "QR-Code", PKBarcodeFormatAztec: "Aztec", PKBarcodeFormatPDF417: "PDF417",
+  PKBarcodeFormatCode128: "Code 128", PKBarcodeFormatEAN13: "EAN-13 (iOS 27)", PKBarcodeFormatCode39: "Code 39 (iOS 27)",
+  PKBarcodeFormatCodabar: "Codabar (iOS 27)", PKBarcodeFormatI2of5: "ITF (iOS 27)" };
+
+function editStyles(p) {
+  const legacy = ["boardingPass", "coupon", "eventTicket", "generic", "storeCard"].filter(s => p[s]);
+  return [...(p.posterGeneric ? ["posterGeneric"] : []), ...legacy];
+}
+
+function fieldRow(s, g, i, f) {
+  const a = `data-s="${s}" data-g="${g}" data-i="${i}"`;
+  let val;
+  if ((f.dateStyle || f.timeStyle) && isDateValue(f.value)) val = `<input type="datetime-local" ${a} data-p="value" value="${toLocalInput(f.value)}">`;
+  else if (typeof f.value === "number") val = `<input type="number" step="any" ${a} data-p="value" value="${f.value}">`;
+  else if (g === "backFields") val = `<textarea ${a} data-p="value" placeholder="Inhalt">${esc(f.value)}</textarea>`;
+  else val = `<input type="text" ${a} data-p="value" value="${esc(f.value)}" placeholder="Inhalt">`;
+  return `<div class="frow"><input type="text" ${a} data-p="label" value="${esc(f.label)}" placeholder="Bezeichnung">${val}
+    <span class="btns">${i ? `<button type="button" data-act="up" ${a} title="Nach oben">↑</button>` : ""}<button type="button" data-act="del" ${a} title="Entfernen">✕</button></span></div>`;
+}
+
+function renderContent() {
+  const p = state.pass || {};
+  const styles = editStyles(p);
+  let html = "";
+  for (const s of styles) {
+    if (styles.length > 1) html += `<h3 class="sub" style="font-size:14px">${STYLE_NAMES[s] || s}</h3>`;
+    const groups = [...new Set([...(STYLE_GROUPS[s] || ["headerFields", "primaryFields", "secondaryFields", "auxiliaryFields", "backFields"]),
+                                ...Object.keys(FIELD_GROUPS).filter(g => Array.isArray(p[s][g]))])];
+    for (const g of groups) {
+      const [title, sub] = FIELD_GROUPS[g], list = p[s][g] || [];
+      html += `<h3 class="sub">${title} ${sub ? `<span class="muted">– ${sub}</span>` : ""}</h3>`;
+      html += list.map((f, i) => fieldRow(s, g, i, f)).join("") || `<p class="empty">Noch keine Felder.</p>`;
+      html += `<button type="button" class="small" data-act="add" data-s="${s}" data-g="${g}">+ Feld</button>`;
+    }
+  }
+  const bc = (p.barcodes || [])[0] || p.barcode;
+  html += `<h3 class="sub">Barcode <span class="muted">– wird beim Einlass gescannt</span></h3>`;
+  if (bc) {
+    const fmts = Object.keys(BARCODE_NAMES).includes(bc.format) ? Object.keys(BARCODE_NAMES) : [bc.format, ...Object.keys(BARCODE_NAMES)];
+    html += `<div class="grid2">
+      <label class="f">Inhalt (wird kodiert)<input type="text" data-bc="message" value="${esc(bc.message)}"></label>
+      <label class="f">Text unter dem Code<input type="text" data-bc="altText" value="${esc(bc.altText)}" placeholder="optional"></label>
+      <label class="f">Art<select data-bc="format">${fmts.map(f => `<option value="${esc(f)}" ${f === bc.format ? "selected" : ""}>${esc(BARCODE_NAMES[f] || f)}</option>`).join("")}</select></label></div>`;
+    if ((p.barcodes || []).length > 1) html += `<p class="muted">Weitere ${p.barcodes.length - 1} Ersatz-Barcode(s) lassen sich unter „pass.json“ bearbeiten.</p>`;
+  } else html += `<button type="button" class="small" data-act="addbc">+ Barcode hinzufügen</button>`;
+  $("content").innerHTML = html || `<p class="muted">Kein Pass geladen.</p>`;
+}
+
+$("content").addEventListener("input", (e) => {
+  const t = e.target, d = t.dataset, p = state.pass;
+  if (d.g) {
+    const f = p[d.s][d.g][+d.i];
+    let v = t.value;
+    if (t.type === "datetime-local") v = fromLocalInput(v, f.value) || f.value;
+    else if (t.type === "number") v = t.value === "" ? 0 : Number(t.value);
+    if (d.p === "label" && v === "") delete f.label; else f[d.p] = v;
+  } else if (d.bc) {
+    for (const bc of [(p.barcodes || [])[0], p.barcode].filter(Boolean)) {
+      if (d.bc === "format" && bc === p.barcode && p.barcodes) continue;   // alter Einzel-Barcode kennt nur die alten Formate
+      if (t.value === "" && d.bc === "altText") delete bc.altText; else bc[d.bc] = t.value;
+    }
+  } else return;
+  afterEdit();
+});
+
+$("content").addEventListener("click", (e) => {
+  const b = e.target.closest("button[data-act]"); if (!b) return;
+  const d = b.dataset, p = state.pass;
+  if (d.act === "addbc") { SNIPPETS["+ Barcode"](p); setPass(p); return; }
+  const list = (p[d.s][d.g] ||= []);
+  if (d.act === "add") list.push({ key: d.g.replace("Fields", "") + Date.now().toString(36), label: "", value: "" });
+  if (d.act === "del") list.splice(+d.i, 1);
+  if (d.act === "up") list.splice(+d.i - 1, 0, ...list.splice(+d.i, 1));
+  setPass(p);
+  if (d.act === "add") $("content").querySelector(`[data-s="${d.s}"][data-g="${d.g}"][data-i="${list.length - 1}"][data-p="label"]`)?.focus();
+});
+
+// ---------------------------------------------------------------- Event-Guide
+// [Ort im pass.json ("s" = semantics, "t" = oberste Ebene), Schlüssel, Bezeichnung, Typ, Symbol für die Vorschau]
+
+const GUIDE = [
+  ["Veranstaltung", "", [
+    ["s", "eventName", "Name der Veranstaltung *"], ["s", "performerNames", "Künstler / Mitwirkende (mit Komma getrennt)", "list"],
+    ["s", "eventStartDate", "Beginn", "date"], ["s", "eventEndDate", "Ende", "date"]]],
+  ["Veranstaltungsort", "Name, Stadt und Bereich braucht Wallet für den Poster-Stil", [
+    ["s", "venueName", "Name des Ortes *"], ["s", "venueRegionName", "Stadt / Region *"], ["s", "venueRoom", "Halle / Bereich *"]]],
+  ["Öffnungszeiten", "", [
+    ["s", "venueOpenDate", "Gelände öffnet", "date"], ["s", "venueParkingLotsOpenDate", "Parkplätze öffnen", "date"],
+    ["s", "venueBoxOfficeOpenDate", "Kasse öffnet", "date"], ["s", "venueGatesOpenDate", "Tore öffnen", "date"],
+    ["s", "venueDoorsOpenDate", "Einlass", "date"], ["s", "venueFanZoneOpenDate", "Fanzone öffnet", "date"],
+    ["s", "venueCloseDate", "Gelände schließt", "date"]]],
+  ["Eingang", "", [
+    ["s", "venueEntrance", "Eingang"], ["s", "venueEntranceGate", "Tor"], ["s", "venueEntranceDoor", "Tür"], ["s", "venueEntrancePortal", "Portal / Aufgang"]]],
+  ["Links & Schnellaktionen", "erscheinen als Buttons im Event-Guide", [
+    ["t", "directionsInformationURL", "Anfahrt", "url", "🧭"], ["t", "transitInformationURL", "Bus & Bahn", "url", "🚆"],
+    ["t", "parkingInformationURL", "Parken", "url", "🅿️"], ["t", "purchaseParkingURL", "Parkticket kaufen", "url", "🎫"],
+    ["t", "orderFoodURL", "Essen & Getränke", "url", "🍔"], ["t", "merchandiseURL", "Merchandise", "url", "👕"],
+    ["t", "bagPolicyURL", "Taschenregelung", "url", "🎒"], ["t", "accessibilityURL", "Barrierefreiheit", "url", "♿"],
+    ["t", "addOnURL", "Zusatzangebote", "url", "➕"], ["t", "transferURL", "Ticket weitergeben", "url", "📤"],
+    ["t", "sellURL", "Ticket verkaufen", "url", "💶"]]],
+  ["Kontakt zum Veranstaltungsort", "", [
+    ["t", "contactVenueWebsite", "Website", "url", "🌐"], ["t", "contactVenuePhoneNumber", "Telefon", "tel", "📞"],
+    ["t", "contactVenueEmail", "E-Mail", "email", "✉️"]]],
+];
+
+function isPosterEvent(p) { return !!(p.eventTicket && (p.preferredStyleSchemes || []).includes("posterEventTicket")); }
+
+function guideInput([where, key, label, type]) {
+  const v = getPath(state.pass, where === "s" ? ["semantics", key] : [key]);
+  const a = `data-gw="${where}" data-gk="${key}" data-gt="${type || "text"}"`;
+  if (type === "date") return `<label class="f">${label}<input type="datetime-local" ${a} value="${toLocalInput(v)}"></label>`;
+  if (type === "list") return `<label class="f">${label}<input type="text" ${a} value="${esc((v || []).join(", "))}"></label>`;
+  const ph = { url: "https://…", tel: "+49 40 …", email: "info@…" }[type] || "";
+  return `<label class="f">${label}<input type="${type === "url" || type === "tel" || type === "email" ? type : "text"}" ${a} value="${esc(v)}" placeholder="${ph}"></label>`;
+}
+
+function renderGuide() {
+  const p = state.pass || {};
+  $("guideCard").hidden = !p.eventTicket;
+  if (!p.eventTicket) return;
+  let html = isPosterEvent(p) ? "" : `<div class="hint">Den Event-Guide zeigt Wallet nur bei Poster-Tickets (iOS 26).
+    <button type="button" class="small" data-act="poster">Poster-Stil aktivieren</button></div>`;
+  for (const [title, sub, items] of GUIDE) {
+    html += `<h3 class="sub">${title} ${sub ? `<span class="muted">– ${sub}</span>` : ""}</h3><div class="grid2">${items.map(guideInput).join("")}`;
+    if (title === "Veranstaltungsort") {
+      const loc = (p.semantics || {}).venueLocation || {};
+      const q = encodeURIComponent([(p.semantics || {}).venueName, (p.semantics || {}).venueRegionName].filter(Boolean).join(" "));
+      html += `<label class="f">Breitengrad (Karte)<input type="number" step="any" data-loc="latitude" value="${loc.latitude ?? ""}" placeholder="53.5888"></label>
+        <label class="f">Längengrad (Karte)<input type="number" step="any" data-loc="longitude" value="${loc.longitude ?? ""}" placeholder="9.8988"></label>
+        <p class="muted" style="grid-column:1/-1;margin:0">Koordinaten findest du z. B. auf <a href="https://www.openstreetmap.org/search?query=${q}" target="_blank" rel="noopener">OpenStreetMap</a>
+        (Rechtsklick auf den Ort → „Adresse anzeigen“).</p>`;
+    }
+    html += `</div>`;
+  }
+  $("guide").innerHTML = html;
+}
+
+$("guide").addEventListener("input", (e) => {
+  const t = e.target, d = t.dataset, p = state.pass;
+  if (d.loc) {
+    const [lat, lng] = ["latitude", "longitude"].map(k => $("guide").querySelector(`[data-loc="${k}"]`).value);
+    p.semantics ||= {};
+    if (lat !== "" && lng !== "" && !isNaN(lat) && !isNaN(lng)) p.semantics.venueLocation = { latitude: Number(lat), longitude: Number(lng) };
+    else delete p.semantics.venueLocation;
+    return afterEdit();
+  }
+  if (!d.gk) return;
+  const path = d.gw === "s" ? ["semantics", d.gk] : [d.gk];
+  let v = t.value;
+  if (d.gt === "date") {
+    v = fromLocalInput(v, getPath(p, path));
+    if (d.gk === "eventStartDate" && p.semantics?.eventStartDateInfo && v) p.semantics.eventStartDateInfo.date = v;
+  } else if (d.gt === "list") {
+    v = v.split(",").map(x => x.trim()).filter(Boolean);
+    if (!v.length) v = "";
+  } else v = v.trim();
+  setPath(p, path, v);
+  afterEdit();
+});
+$("guide").addEventListener("click", (e) => {
+  if (e.target.closest("[data-act=poster]")) { SNIPPETS["Poster aktivieren"](state.pass); state.previewStyle = "eventGuide"; setPass(state.pass); }
+});
+
+function guidePreview(p) {
+  const sem = p.semantics || {};
+  const day = (d) => toLocalInput(d).slice(0, 10);
+  const when = (d) => { const x = new Date(d); if (isNaN(x)) return esc(d);
+    return day(d) === day(sem.eventStartDate) ? x.toLocaleTimeString("de-DE", { hour: "2-digit", minute: "2-digit" }) + " Uhr"
+      : x.toLocaleString("de-DE", { dateStyle: "medium", timeStyle: "short" }); };
+  const items = (title) => GUIDE.find(g => g[0] === title)[2];
+  const val = ([w, k]) => w === "s" ? sem[k] : p[k];
+  const box = (t, inner) => inner ? `<div class="gbox"><div class="t">${t}</div>${inner}</div>` : "";
+  const kv = (list, fmt = esc) => list.filter(val).map(it => `<div class="kv"><span>${esc(it[2])}</span><span>${fmt(val(it))}</span></div>`).join("");
+  const loc = sem.venueLocation;
+  const mapUrl = loc ? `https://maps.apple.com/?ll=${loc.latitude},${loc.longitude}&q=${encodeURIComponent(sem.venueName || "")}` : null;
+  const venue = [sem.venueName, sem.venueRoom, sem.venueRegionName].filter(Boolean).map(esc).join(" · ");
+  const link = ([, k, label, type, icon]) => { const u = p[k]; if (!u) return "";
+    const href = safeHref(type === "tel" ? "tel:" + u.replace(/\s/g, "") : type === "email" ? "mailto:" + u : u);
+    return `<a ${href ? `href="${href}" target="_blank" rel="noopener"` : ""}><b>${icon}</b>${esc(label)}</a>`; };
+  const actions = items("Links & Schnellaktionen").map(link).join(""), contact = items("Kontakt zum Veranstaltungsort").map(link).join("");
+  const info = ((p.eventTicket || {}).additionalInfoFields || []).map(f => `<div class="kv"><span>${esc(f.label)}</span><span>${esc(f.value)}</span></div>`).join("");
+  const html = [
+    `<div><div class="gh">${esc(sem.eventName || p.eventLogoText || p.description)}</div>
+      <div class="muted">${[sem.eventStartDate && new Date(sem.eventStartDate).toLocaleString("de-DE", { dateStyle: "full", timeStyle: "short" }), (sem.performerNames || []).join(", ")].filter(Boolean).map(esc).join(" · ")}</div></div>`,
+    box("Veranstaltungsort", venue || loc ? `${loc ? `<div class="map">📍</div>` : ""}<div style="font-weight:600">${venue}</div>
+      ${mapUrl ? `<a href="${esc(mapUrl)}" target="_blank" rel="noopener" style="font-size:12px">In Karten öffnen</a>` : `<div class="muted">Ohne Koordinaten keine Karte.</div>`}` : ""),
+    box("Öffnungszeiten", kv(items("Öffnungszeiten"), when)),
+    box("Eingang", kv(items("Eingang"))),
+    actions && `<div class="actions">${actions}</div>`,
+    box("Weitere Infos", info),
+    contact && box("Kontakt", `<div class="actions">${contact}</div>`),
+  ].filter(Boolean).join("");
+  return `<div class="guide">${html}</div><p class="muted">Vereinfachte Darstellung – Anordnung und Aussehen bestimmt Wallet.</p>`;
+}
 
 async function api(path, opts = {}) {
   const r = await fetch(path, opts);
@@ -196,7 +465,7 @@ async function loadTemplate() {
 function setPass(p, fromEditor = false) {
   state.pass = p;
   if (!fromEditor) $("json").value = JSON.stringify(p, null, 2);
-  renderBasics(); renderPreview(); scheduleValidate();
+  renderBasics(); renderContent(); renderGuide(); renderPreview(); scheduleValidate();
 }
 
 function renderBasics() {
@@ -263,7 +532,7 @@ function availableViews(p) {
   const views = [];
   const schemes = p.preferredStyleSchemes || [];
   if (p.posterGeneric) views.push(["posterGeneric", "Poster Generic (iOS 27)"]);
-  if (p.eventTicket && schemes.includes("posterEventTicket")) views.push(["posterEvent", "Poster-Ticket (iOS 26)"]);
+  if (p.eventTicket && schemes.includes("posterEventTicket")) views.push(["posterEvent", "Poster-Ticket (iOS 26)"], ["eventGuide", "Event-Guide"]);
   if (p.boardingPass && schemes.includes("semanticBoardingPass")) views.push(["semanticBoarding", "Semantisch (iOS 26)"]);
   const legacy = ["boardingPass", "coupon", "eventTicket", "generic", "storeCard"].find(s => p[s]);
   if (legacy) views.push([legacy, "Klassisch / Fallback"]);
@@ -302,6 +571,8 @@ function renderPreview() {
       <div style="text-align:right">${fields(style, "headerFields", "")}</div></div>
       <div class="poster-bottom"><div class="event">${title}</div><div class="muted" style="color:#ddd">${sub}</div>
       ${slogo ? `<div style="text-align:right"><img src="${slogo}" style="max-height:14px"></div>` : ""}</div></div>`;
+  } else if (v === "eventGuide") {
+    html = guidePreview(p);
   } else if (v === "semanticBoarding") {
     const n = sem.passengerName || {};
     const t = (d) => d ? new Date(d).toLocaleTimeString("de-DE", { hour: "2-digit", minute: "2-digit", timeZone: sem.departureLocationTimeZone || undefined }) : "–";
