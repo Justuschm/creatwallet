@@ -55,25 +55,66 @@
   .badge.ok { color: #1b8a3a; border-color: #1b8a3a; } .badge.bad { color: var(--err); border-color: var(--err); }
   .muted { color: var(--muted); font-size: 12px; }
   a { color: var(--accent); }
-  /* preview */
-  .pass { border-radius: 14px; overflow: hidden; position: relative; min-height: 420px; box-shadow: 0 6px 24px #0003;
-          display: flex; flex-direction: column; padding: 12px 14px; gap: 10px; background-size: cover; background-position: center; }
-  .pass .row { display: flex; gap: 12px; justify-content: space-between; align-items: flex-start; }
-  .pass .row.left { justify-content: flex-start; }
-  .pass .fl { font-size: 10px; font-weight: 600; text-transform: uppercase; letter-spacing: .03em; }
-  .pass .fv { font-size: 15px; word-break: break-word; }
-  .pass .primary .fv { font-size: 30px; font-weight: 300; line-height: 1.1; }
-  .pass .logo { display: flex; align-items: center; gap: 8px; font-weight: 600; font-size: 15px; min-width: 0; }
-  .pass .logo img { max-height: 30px; max-width: 120px; }
-  .pass .strip { margin: 0 -14px; height: 110px; background-size: cover; background-position: center; }
-  .pass .barcode { margin-top: auto; align-self: center; background: #fff; color: #000; border-radius: 8px; padding: 8px 12px; text-align: center; font-size: 11px; }
-  .pass .barcode .code { width: 120px; height: 120px; margin: 0 auto 4px;
-          background: repeating-linear-gradient(90deg, #000 0 3px, #fff 3px 5px, #000 5px 6px, #fff 6px 9px); }
-  .pass .barcode .code.linear { height: 50px; width: 200px; }
-  .pass.poster { justify-content: flex-end; }
-  .pass.poster .poster-top { position: absolute; top: 12px; left: 14px; right: 14px; display: flex; justify-content: space-between; }
-  .pass.poster .poster-bottom { background: #0008; backdrop-filter: blur(16px); margin: 0 -14px -12px; padding: 12px 14px; color: #fff; }
-  .pass.poster .event { font-size: 22px; font-weight: 700; line-height: 1.15; }
+  /* Vorschau – nachempfunden der Wallet-App */
+  .wl { background: #f2f2f7; border-radius: 12px; padding: 20px 10px; display: flex; flex-direction: column; align-items: center; gap: 10px; }
+  @media (prefers-color-scheme: dark) { .wl { background: #000; } }
+  .pk { width: 320px; max-width: 100%; border-radius: 16px; overflow: hidden; position: relative; display: flex; flex-direction: column;
+        font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Helvetica Neue", sans-serif; box-shadow: 0 1px 2px #0002, 0 8px 24px #0003;
+        background-size: cover; background-position: center; }
+  .pk .hd { display: flex; justify-content: space-between; align-items: center; gap: 10px; padding: 12px 14px 4px; min-height: 52px; position: relative; }
+  .pk .lg { display: flex; align-items: center; gap: 8px; min-width: 0; font-size: 16px; font-weight: 600; }
+  .pk .lg img { max-height: 40px; max-width: 140px; }
+  .pk .row { display: flex; gap: 12px; padding: 4px 14px; position: relative; }
+  .pk .row > div { min-width: 0; }
+  .pk .row.spread { justify-content: space-between; }
+  .pk .row.spread > div:last-child:not(:first-child) { text-align: right; }
+  .pk .hd .row { padding: 0; }
+  .pk .lab { font-size: 11px; font-weight: 600; letter-spacing: .02em; text-transform: uppercase; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .pk .val { font-size: 17px; line-height: 1.2; word-break: break-word; }
+  .pk .prim .val { font-size: 34px; font-weight: 300; line-height: 1.1; }
+  .pk .prim .lab { font-size: 12px; }
+  .pk .strip { background-size: cover; background-position: center; margin: 4px 0; min-height: 123px; display: flex; align-items: flex-end; }
+  .pk .bcw { margin-top: auto; padding: 14px; display: flex; justify-content: center; position: relative; }
+  .pk .bc { background: #fff; color: #000; border-radius: 8px; padding: 10px 12px 6px; text-align: center; font-size: 12px; }
+  .pk .bc svg { display: block; margin: 0 auto 4px; }
+  .pk.ticket { -webkit-mask: radial-gradient(circle 20px at 50% 0, #0000 98%, #000); mask: radial-gradient(circle 20px at 50% 0, #0000 98%, #000); }
+  .pk.coupon { -webkit-mask: radial-gradient(circle 4px at 6px 0, #0000 98%, #000) top / 12px 51% repeat-x, radial-gradient(circle 4px at 6px 100%, #0000 98%, #000) bottom / 12px 51% repeat-x;
+               mask: radial-gradient(circle 4px at 6px 0, #0000 98%, #000) top / 12px 51% repeat-x, radial-gradient(circle 4px at 6px 100%, #0000 98%, #000) bottom / 12px 51% repeat-x; }
+  .pk .bgblur { position: absolute; inset: -20px; background-size: cover; background-position: center; filter: blur(14px) brightness(.75); }
+  .pk .transit { align-self: center; font-size: 26px; flex: none !important; }
+  /* Poster-Stil */
+  .pk.poster { color: #fff; }
+  .pk .art { position: relative; height: 380px; background-size: cover; background-position: center; display: flex; flex-direction: column; }
+  .pk .art .shade { position: absolute; inset: 0 0 auto; height: 110px; background: linear-gradient(#000a, #0000); }
+  .pk .art .fade { position: absolute; inset: auto 0 0; height: 130px; }
+  .pk .art .hd { z-index: 1; }
+  .pk .art .lg img { max-height: 34px; }
+  .pk .info { padding: 0 14px 10px; margin-top: -54px; position: relative; display: flex; flex-direction: column; gap: 3px; }
+  .pk .info .ev { font-size: 24px; font-weight: 700; line-height: 1.1; letter-spacing: -.01em; }
+  .pk .info .sub { font-size: 14px; opacity: .85; }
+  .pk .seats { display: flex; gap: 18px; padding: 8px 14px 4px; }
+  .pk .seats .val { font-size: 20px; font-weight: 600; }
+  .pk .foot { display: flex; justify-content: space-between; align-items: center; gap: 10px; padding: 9px 14px; min-height: 36px; font-size: 12px; }
+  .pk .foot img { max-height: 14px; max-width: 135px; }
+  /* Rückseite / Event-Guide im iOS-Listenstil */
+  .ios { width: 320px; max-width: 100%; font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", sans-serif; color: var(--text); display: flex; flex-direction: column; gap: 14px; }
+  .ios .banner { border-radius: 16px; overflow: hidden; height: 150px; background-size: cover; background-position: center; position: relative; display: flex; align-items: flex-end; color: #fff; }
+  .ios .banner > div { position: relative; padding: 12px 14px; }
+  .ios .banner::before { content: ""; position: absolute; inset: 0; background: linear-gradient(#0000 30%, #000c); }
+  .ios .banner b { display: block; font-size: 22px; line-height: 1.1; }
+  .ios .sect > .t { font-size: 13px; color: var(--muted); text-transform: uppercase; margin: 0 14px 6px; }
+  .ios .list { background: var(--panel); border-radius: 12px; overflow: hidden; }
+  .ios .li { display: flex; align-items: center; gap: 10px; padding: 10px 14px; min-height: 44px; font-size: 15px; color: var(--text); text-decoration: none; }
+  .ios .li + .li { border-top: .5px solid var(--line); }
+  .ios .li .ic { width: 29px; height: 29px; border-radius: 7px; display: flex; align-items: center; justify-content: center; font-size: 16px; flex: none; }
+  .ios .li .tx { flex: 1; min-width: 0; }
+  .ios .li .rt { color: var(--muted); text-align: right; }
+  .ios .li .chev { color: var(--muted); font-size: 18px; }
+  .ios .li.stack { flex-direction: column; align-items: stretch; gap: 2px; }
+  .ios .li.stack .k { font-size: 12px; color: var(--muted); }
+  .ios .map { height: 150px; border: 0; width: 100%; display: block; background: linear-gradient(135deg, #cfe3c8, #b9d4ea); }
+  .ios .map.ph { display: flex; align-items: center; justify-content: center; color: #345; font-size: 13px; }
+  .pk > :not(.bgblur) { position: relative; }
   .tabs { display: flex; gap: 4px; margin-bottom: 10px; flex-wrap: wrap; }
   .tabs button { padding: 4px 10px; font-size: 12px; }
   .tabs button.on { background: var(--accent); border-color: var(--accent); color: #fff; }
@@ -97,18 +138,6 @@
   .hint { background: var(--code); border-left: 3px solid var(--info); padding: 8px 10px; border-radius: 0 6px 6px 0; font-size: 12.5px; margin-bottom: 10px; }
   details.card > summary { cursor: pointer; font-size: 14px; text-transform: uppercase; letter-spacing: .04em; color: var(--muted); font-weight: 700; }
   details.card[open] > summary { margin-bottom: 10px; }
-  /* Event-Guide-Vorschau */
-  .guide { border-radius: 14px; background: var(--code); border: 1px solid var(--line); padding: 14px; display: flex; flex-direction: column; gap: 12px; }
-  .guide .gh { font-size: 18px; font-weight: 700; line-height: 1.2; }
-  .guide .gbox { background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 10px 12px; }
-  .guide .gbox .t { font-size: 11px; text-transform: uppercase; letter-spacing: .04em; color: var(--muted); font-weight: 600; margin-bottom: 6px; }
-  .guide .map { height: 90px; border-radius: 8px; background: linear-gradient(135deg, #cfe3c8, #b9d4ea); display: flex; align-items: center; justify-content: center; color: #234; font-size: 26px; margin-bottom: 8px; }
-  .guide .kv { display: flex; justify-content: space-between; gap: 10px; padding: 3px 0; font-size: 13px; }
-  .guide .kv span:first-child { color: var(--muted); }
-  .guide .actions { display: grid; grid-template-columns: repeat(auto-fill, minmax(110px, 1fr)); gap: 6px; }
-  .guide .actions a { display: flex; flex-direction: column; align-items: center; gap: 2px; padding: 8px 4px; border-radius: 10px; background: var(--panel);
-                      border: 1px solid var(--line); color: var(--text); text-decoration: none; font-size: 12px; text-align: center; }
-  .guide .actions a b { font-size: 18px; }
 </style>
 </head>
 <body>
@@ -399,37 +428,6 @@ $("guide").addEventListener("click", (e) => {
   if (e.target.closest("[data-act=poster]")) { SNIPPETS["Poster aktivieren"](state.pass); state.previewStyle = "eventGuide"; setPass(state.pass); }
 });
 
-function guidePreview(p) {
-  const sem = p.semantics || {};
-  const day = (d) => toLocalInput(d).slice(0, 10);
-  const when = (d) => { const x = new Date(d); if (isNaN(x)) return esc(d);
-    return day(d) === day(sem.eventStartDate) ? x.toLocaleTimeString("de-DE", { hour: "2-digit", minute: "2-digit" }) + " Uhr"
-      : x.toLocaleString("de-DE", { dateStyle: "medium", timeStyle: "short" }); };
-  const items = (title) => GUIDE.find(g => g[0] === title)[2];
-  const val = ([w, k]) => w === "s" ? sem[k] : p[k];
-  const box = (t, inner) => inner ? `<div class="gbox"><div class="t">${t}</div>${inner}</div>` : "";
-  const kv = (list, fmt = esc) => list.filter(val).map(it => `<div class="kv"><span>${esc(it[2])}</span><span>${fmt(val(it))}</span></div>`).join("");
-  const loc = sem.venueLocation;
-  const mapUrl = loc ? `https://maps.apple.com/?ll=${loc.latitude},${loc.longitude}&q=${encodeURIComponent(sem.venueName || "")}` : null;
-  const venue = [sem.venueName, sem.venueRoom, sem.venueRegionName].filter(Boolean).map(esc).join(" · ");
-  const link = ([, k, label, type, icon]) => { const u = p[k]; if (!u) return "";
-    const href = safeHref(type === "tel" ? "tel:" + u.replace(/\s/g, "") : type === "email" ? "mailto:" + u : u);
-    return `<a ${href ? `href="${href}" target="_blank" rel="noopener"` : ""}><b>${icon}</b>${esc(label)}</a>`; };
-  const actions = items("Links & Schnellaktionen").map(link).join(""), contact = items("Kontakt zum Veranstaltungsort").map(link).join("");
-  const info = ((p.eventTicket || {}).additionalInfoFields || []).map(f => `<div class="kv"><span>${esc(f.label)}</span><span>${esc(f.value)}</span></div>`).join("");
-  const html = [
-    `<div><div class="gh">${esc(sem.eventName || p.eventLogoText || p.description)}</div>
-      <div class="muted">${[sem.eventStartDate && new Date(sem.eventStartDate).toLocaleString("de-DE", { dateStyle: "full", timeStyle: "short" }), (sem.performerNames || []).join(", ")].filter(Boolean).map(esc).join(" · ")}</div></div>`,
-    box("Veranstaltungsort", venue || loc ? `${loc ? `<div class="map">📍</div>` : ""}<div style="font-weight:600">${venue}</div>
-      ${mapUrl ? `<a href="${esc(mapUrl)}" target="_blank" rel="noopener" style="font-size:12px">In Karten öffnen</a>` : `<div class="muted">Ohne Koordinaten keine Karte.</div>`}` : ""),
-    box("Öffnungszeiten", kv(items("Öffnungszeiten"), when)),
-    box("Eingang", kv(items("Eingang"))),
-    actions && `<div class="actions">${actions}</div>`,
-    box("Weitere Infos", info),
-    contact && box("Kontakt", `<div class="actions">${contact}</div>`),
-  ].filter(Boolean).join("");
-  return `<div class="guide">${html}</div><p class="muted">Vereinfachte Darstellung – Anordnung und Aussehen bestimmt Wallet.</p>`;
-}
 
 async function api(path, opts = {}) {
   const r = await fetch(path, opts);
@@ -515,29 +513,249 @@ function img(name) {
   return null;
 }
 
-function fieldHtml(f, cls = "") {
+// ---------------------------------------------------------------- Vorschau (nachempfunden der Wallet-App)
+
+function formatValue(f) {
   let v = f.value;
-  if (f.currencyCode && typeof v === "number") v = new Intl.NumberFormat("de-DE", { style: "currency", currency: f.currencyCode }).format(v);
-  else if ((f.dateStyle || f.timeStyle) && typeof v === "string") {
-    const d = new Date(v); const o = {};
+  if (f.currencyCode && typeof v === "number") return new Intl.NumberFormat("de-DE", { style: "currency", currency: f.currencyCode }).format(v);
+  if ((f.dateStyle || f.timeStyle) && typeof v === "string") {
+    const d = new Date(v), o = {};
     const map = { PKDateStyleShort: "short", PKDateStyleMedium: "medium", PKDateStyleLong: "long", PKDateStyleFull: "full" };
     if (map[f.dateStyle]) o.dateStyle = map[f.dateStyle]; if (map[f.timeStyle]) o.timeStyle = map[f.timeStyle];
-    if (!isNaN(d)) v = new Intl.DateTimeFormat("de-DE", o).format(d);
+    if (!isNaN(d)) return new Intl.DateTimeFormat("de-DE", o).format(d);
   }
-  const align = { PKTextAlignmentRight: "right", PKTextAlignmentCenter: "center" }[f.textAlignment] || "left";
-  return `<div class="${cls}" style="text-align:${align}"><div class="fl">${esc(f.label)}</div><div class="fv">${esc(v)}</div></div>`;
+  if (f.numberStyle === "PKNumberStylePercent" && typeof v === "number") return new Intl.NumberFormat("de-DE", { style: "percent" }).format(v);
+  return v;
+}
+
+function fieldHtml(f, lc) {
+  const align = { PKTextAlignmentRight: "right", PKTextAlignmentCenter: "center", PKTextAlignmentLeft: "left" }[f.textAlignment];
+  return `<div${align ? ` style="text-align:${align}"` : ""}>${f.label ? `<div class="lab" style="color:${lc}">${esc(f.label)}</div>` : ""}<div class="val">${esc(formatValue(f))}</div></div>`;
+}
+
+// Kein echter Barcode, aber ein zum Inhalt passendes, stabiles Muster im richtigen Format.
+function rng(seed) {
+  let h = 2166136261; for (const c of String(seed)) h = Math.imul(h ^ c.charCodeAt(0), 16777619);
+  return () => { h ^= h << 13; h ^= h >>> 17; h ^= h << 5; return (h >>> 0) / 4294967296; };
+}
+function barcodeSvg(format, msg) {
+  const r = rng(format + "|" + msg); let d = "";
+  const box = (x, y, w, h) => { d += `M${x} ${y}h${w}v${h}h${-w}z`; };
+  if (/QR|Aztec/.test(format)) {
+    const qr = /QR/.test(format), n = qr ? 25 : 23;
+    const g = Array.from({ length: n }, () => Array.from({ length: n }, () => r() < .5));
+    const set = (x, y, v) => { if (x >= 0 && y >= 0 && x < n && y < n) g[y][x] = v; };
+    if (qr) {
+      for (const [ox, oy] of [[0, 0], [n - 7, 0], [0, n - 7]])
+        for (let y = -1; y < 8; y++) for (let x = -1; x < 8; x++) { const m = Math.max(Math.abs(x - 3), Math.abs(y - 3)); set(ox + x, oy + y, m !== 2 && m !== 4); }
+      for (let i = 8; i < n - 8; i++) { set(i, 6, i % 2 === 0); set(6, i, i % 2 === 0); }
+    } else {
+      const c = (n - 1) / 2;
+      for (let y = -5; y <= 5; y++) for (let x = -5; x <= 5; x++) set(c + x, c + y, Math.max(Math.abs(x), Math.abs(y)) % 2 === 0);
+    }
+    g.forEach((row, y) => row.forEach((on, x) => on && box(x, y, 1, 1)));
+    return `<svg viewBox="-1 -1 ${n + 2} ${n + 2}" width="134" height="134" shape-rendering="crispEdges"><path d="${d}"/></svg>`;
+  }
+  if (/PDF417/.test(format)) {
+    const rows = 12, W = 140;
+    for (let y = 0; y < rows; y++) {
+      let x = 0;
+      const pat = (arr) => arr.forEach((b, i) => { if (i % 2 === 0) box(x, y, b, 1); x += b; });
+      pat([8, 1, 1, 1, 1, 1, 1, 3]);
+      let on = true; while (x < W - 18) { const b = 1 + Math.floor(r() * 4); if (on) box(x, y, b, 1); x += b; on = !on; }
+      x = W - 18; pat([7, 1, 1, 3, 1, 1, 1, 2, 1]);
+    }
+    return `<svg viewBox="0 0 ${W} ${rows}" width="250" height="72" preserveAspectRatio="none" shape-rendering="crispEdges"><path d="${d}"/></svg>`;
+  }
+  let x = 0, on = true;
+  while (x < 110) { const b = 1 + Math.floor(r() * 3); if (on) box(x, 0, b, 1); x += b; on = !on; }
+  return `<svg viewBox="0 0 ${x} 1" width="250" height="68" preserveAspectRatio="none" shape-rendering="crispEdges"><path d="${d}"/></svg>`;
+}
+function barcodeHtml(p) {
+  const code = (p.barcodes || [])[0] || p.barcode;
+  if (!code || !code.format) return "";
+  return `<div class="bcw"><div class="bc">${barcodeSvg(code.format, code.message || "")}${esc(code.altText || "")}</div></div>`;
+}
+
+// Mittlere Farbe des unteren Artwork-Bereichs (für useAutomaticColors).
+const artColors = {};
+function artColor(src) {
+  if (!src) return null;
+  if (src in artColors) return artColors[src];
+  if (Object.keys(artColors).length > 20) for (const k in artColors) delete artColors[k];
+  artColors[src] = null;
+  const im = new Image();
+  im.onload = () => {
+    const c = document.createElement("canvas"); c.width = c.height = 8;
+    const x = c.getContext("2d"); x.drawImage(im, 0, 0, 8, 8);
+    const d = x.getImageData(0, 5, 8, 3).data, s = [0, 0, 0];
+    for (let i = 0; i < d.length; i += 4) for (let k = 0; k < 3; k++) s[k] += d[i + k];
+    artColors[src] = s.map(v => Math.round(v / (d.length / 4)));
+    renderPreview();
+  };
+  im.src = src;
+  return null;
+}
+
+function colors(p, art) {
+  const auto = p.useAutomaticColors && art ? artColor(art) : null;
+  if (auto) return { bg: `rgb(${auto.map(v => Math.round(v * .55)).join(", ")})`, fg: "#fff", lc: "rgba(255, 255, 255, .7)" };
+  const fg = p.foregroundColor || "rgb(0, 0, 0)";
+  return { bg: p.backgroundColor || "rgb(240, 240, 240)", fg, lc: p.labelColor || fg };
 }
 
 function availableViews(p) {
   const views = [];
   const schemes = p.preferredStyleSchemes || [];
-  if (p.posterGeneric) views.push(["posterGeneric", "Poster Generic (iOS 27)"]);
-  if (p.eventTicket && schemes.includes("posterEventTicket")) views.push(["posterEvent", "Poster-Ticket (iOS 26)"], ["eventGuide", "Event-Guide"]);
+  if (p.posterGeneric) views.push(["posterGeneric", "Poster (iOS 27)"]);
+  if (isPosterEvent(p)) views.push(["posterEvent", "Poster-Ticket (iOS 26)"], ["eventGuide", "Event-Guide"]);
   if (p.boardingPass && schemes.includes("semanticBoardingPass")) views.push(["semanticBoarding", "Semantisch (iOS 26)"]);
   const legacy = ["boardingPass", "coupon", "eventTicket", "generic", "storeCard"].find(s => p[s]);
   if (legacy) views.push([legacy, "Klassisch / Fallback"]);
+  if (mainStyle(p)) views.push(["back", "Rückseite"]);
   return views;
 }
+
+function rowOf(fields, lc, cls = "row spread") {
+  return (fields || []).length ? `<div class="${cls}">${fields.map(f => fieldHtml(f, lc)).join("")}</div>` : "";
+}
+
+function posterEventHtml(p) {
+  const sem = p.semantics || {}, art = img("artwork"), plogo = img("primaryLogo"), slogo = img("secondaryLogo");
+  const { bg, fg, lc } = colors(p, art);
+  const title = sem.homeTeamAbbreviation
+    ? `${esc(sem.homeTeamAbbreviation)} <span style="opacity:.6;font-weight:400">vs</span> ${esc(sem.awayTeamAbbreviation)}`
+    : esc(sem.eventName || p.eventLogoText || "");
+  const start = sem.eventStartDate ? new Date(sem.eventStartDate) : null;
+  const date = start && !isNaN(start) ? start.toLocaleString("de-DE", { weekday: "short", day: "numeric", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit" }) : "";
+  const venue = [sem.venueName, sem.venueRoom].filter(Boolean).join(" · ");
+  const seat = (sem.seats || [])[0] || {};
+  const seats = [["Bereich", seat.seatSection], ["Reihe", seat.seatRow], ["Platz", seat.seatNumber]].filter(x => x[1]);
+  return `<div class="pk poster" style="background:${bg};color:${fg}">
+    <div class="art" style="${art ? `background-image:url(${art})` : `background:${bg}`}">
+      ${p.suppressHeaderDarkening ? "" : `<div class="shade"></div>`}
+      <div class="hd"><div class="lg">${plogo ? `<img src="${plogo}">` : `<span>${esc(p.eventLogoText || p.logoText)}</span>`}</div>
+        ${rowOf((p.eventTicket || {}).headerFields, "rgba(255, 255, 255, .75)", "row")}</div>
+      <div class="fade" style="background:linear-gradient(transparent, ${bg})"></div></div>
+    <div class="info"><div class="ev">${title}</div>${date ? `<div class="sub">${esc(date)}</div>` : ""}${venue ? `<div class="sub">${esc(venue)}</div>` : ""}</div>
+    ${seats.length ? `<div class="seats">${seats.map(([l, v]) => `<div><div class="lab" style="color:${lc}">${l}</div><div class="val">${esc(v)}</div></div>`).join("")}</div>` : ""}
+    ${barcodeHtml(p)}
+    <div class="foot" style="background:${p.footerBackgroundColor || seat.seatSectionColor || "transparent"}"><span>${esc(sem.admissionLevel || "")}</span>${slogo ? `<img src="${slogo}">` : ""}</div>
+  </div>`;
+}
+
+function posterGenericHtml(p) {
+  const s = p.posterGeneric || {}, art = img("artwork"), plogo = img("primaryLogo") || img("logo");
+  const { bg, fg, lc } = colors(p, art);
+  const prim = (s.primaryFields || []).map(f => `<div>${f.label ? `<div class="lab" style="color:${lc}">${esc(f.label)}</div>` : ""}<div class="ev">${esc(formatValue(f))}</div></div>`).join("");
+  return `<div class="pk poster" style="background:${bg};color:${fg}">
+    <div class="art" style="${art ? `background-image:url(${art})` : `background:${bg}`}">
+      ${p.suppressHeaderDarkening ? "" : `<div class="shade"></div>`}
+      <div class="hd"><div class="lg">${plogo ? `<img src="${plogo}">` : ""}<span>${esc(p.logoText)}</span></div>${rowOf(s.headerFields, "rgba(255, 255, 255, .75)", "row")}</div>
+      <div class="fade" style="background:linear-gradient(transparent, ${bg})"></div></div>
+    <div class="info">${prim}</div>
+    ${rowOf(s.secondaryFields, lc)}${rowOf(s.auxiliaryFields, lc)}
+    ${barcodeHtml(p)}
+    ${(s.footerFields || []).length ? `<div class="foot">${s.footerFields.map(f => `<span>${esc(f.label ? f.label + " " : "")}<b>${esc(formatValue(f))}</b></span>`).join("")}</div>` : ""}
+  </div>`;
+}
+
+function semanticBoardingHtml(p) {
+  const sem = p.semantics || {}, n = sem.passengerName || {};
+  const { bg, fg, lc } = colors(p, null);
+  const t = (d) => d ? new Date(d).toLocaleTimeString("de-DE", { hour: "2-digit", minute: "2-digit", timeZone: sem.departureLocationTimeZone || undefined }) : "–";
+  const kv = (l, v) => `<div><div class="lab" style="color:${lc}">${l}</div><div class="val">${esc(v)}</div></div>`;
+  const plogo = img("primaryLogo");
+  return `<div class="pk" style="background:${bg};color:${fg}">
+    <div class="hd"><div class="lg">${plogo ? `<img src="${plogo}">` : ""}<span>${esc(sem.transitProvider || p.logoText)}</span></div>
+      <div style="text-align:right">${kv("Flug", `${sem.airlineCode || ""}${sem.flightNumber ?? ""}`)}</div></div>
+    <div class="row spread prim">
+      <div>${kv(sem.departureCityName || "", sem.departureAirportCode || "")}<div>${t(sem.originalDepartureDate)}</div></div>
+      <div class="transit">✈︎</div>
+      <div style="text-align:right">${kv(sem.destinationCityName || "", sem.destinationAirportCode || "")}<div>${t(sem.originalArrivalDate)}</div></div></div>
+    <div class="row"><div><div class="val" style="font-weight:600">${esc([n.givenName, n.familyName].filter(Boolean).join(" "))}</div>
+      <div style="margin-top:4px">${[sem.ticketFareClass, sem.membershipProgramStatus, ...(sem.passengerServiceSSRs || [])].filter(Boolean)
+        .map(b => `<span style="display:inline-block;font-size:11px;font-weight:600;border:1px solid ${lc};border-radius:5px;padding:1px 6px;margin:0 4px 4px 0">${esc(b)}</span>`).join("")}</div></div></div>
+    <div class="row spread">${[["Boarding", t(sem.originalBoardingDate)], ["Gate", sem.departureGate], ["Gruppe", sem.boardingGroup || sem.boardingZone], ["Sitz", (sem.seats || [])[0]?.seatNumber]]
+      .filter(x => x[1]).map(([l, x]) => kv(l, x)).join("")}</div>
+    ${barcodeHtml(p)}</div>`;
+}
+
+function classicHtml(p, v) {
+  const s = p[v] || {};
+  const logo = img("logo"), strip = img("strip"), thumb = img("thumbnail"), back = v === "eventTicket" ? img("background") : null;
+  const { bg, fg, lc } = back ? { bg: p.backgroundColor || "rgb(40, 40, 40)", fg: p.foregroundColor || "#fff", lc: p.labelColor || p.foregroundColor || "#fff" } : colors(p, null);
+  let body;
+  if (v === "boardingPass") {
+    const icon = { PKTransitTypeAir: "✈︎", PKTransitTypeTrain: "🚆", PKTransitTypeBus: "🚌", PKTransitTypeBoat: "⛴" }[s.transitType] || "→";
+    const [from, to] = s.primaryFields || [];
+    body = `<div class="row spread prim">${from ? fieldHtml(from, lc) : ""}<div class="transit">${icon}</div>${to ? fieldHtml({ ...to, textAlignment: "PKTextAlignmentRight" }, lc) : ""}</div>`
+      + rowOf(s.auxiliaryFields, lc) + rowOf(s.secondaryFields, lc);
+  } else if (strip && (v === "coupon" || v === "storeCard" || (v === "eventTicket" && !back))) {
+    body = `<div class="strip" style="background-image:url(${strip})">${rowOf(s.primaryFields, lc, "row prim")}</div>`
+      + (v === "eventTicket" ? rowOf(s.secondaryFields, lc) + rowOf(s.auxiliaryFields, lc) : rowOf([...(s.secondaryFields || []), ...(s.auxiliaryFields || [])], lc));
+  } else {
+    body = `<div class="row prim" style="justify-content:space-between;align-items:flex-start"><div>${(s.primaryFields || []).map(f => fieldHtml(f, lc)).join("")}</div>
+      ${thumb && (v === "generic" || v === "eventTicket") ? `<img src="${thumb}" style="max-width:90px;max-height:90px;border-radius:6px">` : ""}</div>`
+      + (v === "coupon" || v === "storeCard" ? rowOf([...(s.secondaryFields || []), ...(s.auxiliaryFields || [])], lc) : rowOf(s.secondaryFields, lc) + rowOf(s.auxiliaryFields, lc));
+  }
+  const shape = v === "eventTicket" ? "ticket" : v === "coupon" ? "coupon" : "";
+  return `<div class="pk ${shape}" style="background-color:${bg};color:${fg}">${back ? `<div class="bgblur" style="background-image:url(${back})"></div>` : ""}
+    <div class="hd"><div class="lg">${logo ? `<img src="${logo}">` : ""}<span>${esc(p.logoText)}</span></div>${rowOf(s.headerFields, lc, "row")}</div>
+    ${body}${barcodeHtml(p)}</div>`;
+}
+
+function backHtml(p) {
+  const s = p[mainStyle(p)] || {};
+  const rows = (s.backFields || []).map(f => `<div class="li stack">${f.label ? `<span class="k">${esc(f.label)}</span>` : ""}<span style="white-space:pre-line">${esc(formatValue(f))}</span></div>`).join("");
+  const sect = (t, inner) => inner ? `<div class="sect">${t ? `<div class="t">${t}</div>` : ""}<div class="list">${inner}</div></div>` : "";
+  return `<div class="ios">
+    ${sect("", `<div class="li"><span class="tx">Automatische Updates</span><span class="rt">${p.webServiceURL ? "Ein" : "–"}</span></div>
+      <div class="li"><span class="tx">Im Sperrbildschirm vorschlagen</span><span class="rt">${p.locations || p.relevantDates || p.relevantDate ? "Ein" : "–"}</span></div>`)}
+    ${sect("Informationen", rows)}
+    ${sect("", `<div class="li stack"><span class="k">Herausgeber</span><span>${esc(p.organizationName)}</span></div>`)}
+  </div>`;
+}
+
+const GUIDE_COLORS = ["#0a84ff", "#30d158", "#ff9f0a", "#ff375f", "#bf5af2", "#64d2ff", "#ffcc00", "#ff453a", "#5e5ce6", "#32ade6", "#ac8e68"];
+
+function guidePreview(p) {
+  const sem = p.semantics || {}, art = img("artwork");
+  const day = (d) => toLocalInput(d).slice(0, 10);
+  const when = (d) => { const x = new Date(d); if (isNaN(x)) return esc(d);
+    return day(d) === day(sem.eventStartDate) ? x.toLocaleTimeString("de-DE", { hour: "2-digit", minute: "2-digit" }) + " Uhr"
+      : x.toLocaleString("de-DE", { dateStyle: "medium", timeStyle: "short" }); };
+  const items = (title) => GUIDE.find(g => g[0] === title)[2];
+  const val = ([w, k]) => w === "s" ? sem[k] : p[k];
+  const sect = (t, inner) => inner ? `<div class="sect"><div class="t">${t}</div><div class="list">${inner}</div></div>` : "";
+  const kvRows = (list, fmt = esc) => list.filter(val).map(it => `<div class="li"><span class="tx">${esc(it[2])}</span><span class="rt">${fmt(val(it))}</span></div>`).join("");
+  const link = ([, k, label, type, icon], i) => { const u = p[k]; if (!u) return "";
+    const href = safeHref(type === "tel" ? "tel:" + u.replace(/\s/g, "") : type === "email" ? "mailto:" + u : u);
+    return `<a class="li" ${href ? `href="${href}" target="_blank" rel="noopener"` : ""}><span class="ic" style="background:${GUIDE_COLORS[i % GUIDE_COLORS.length]}">${icon}</span>
+      <span class="tx">${esc(label)}</span>${type !== "url" ? `<span class="rt">${esc(u)}</span>` : `<span class="chev">›</span>`}</a>`; };
+  const lat = Number(sem.venueLocation?.latitude), lng = Number(sem.venueLocation?.longitude);
+  const hasLoc = sem.venueLocation && Number.isFinite(lat) && Number.isFinite(lng);
+  const mapSrc = hasLoc ? `https://www.openstreetmap.org/export/embed.html?bbox=${lng - .008},${lat - .004},${lng + .008},${lat + .004}&layer=mapnik&marker=${lat},${lng}` : "";
+  const route = hasLoc ? `https://maps.apple.com/?ll=${lat},${lng}&q=${encodeURIComponent(sem.venueName || "")}` : "";
+  const start = sem.eventStartDate ? new Date(sem.eventStartDate) : null;
+  const subline = [start && !isNaN(start) && start.toLocaleString("de-DE", { weekday: "long", day: "numeric", month: "long", hour: "2-digit", minute: "2-digit" }),
+                   (sem.performerNames || []).join(", ")].filter(Boolean).map(esc).join(" · ");
+  const info = ((p.eventTicket || {}).additionalInfoFields || []).map(f => `<div class="li"><span class="tx">${esc(f.label)}</span><span class="rt">${esc(formatValue(f))}</span></div>`).join("");
+  return `<div class="ios">
+    <div class="banner" style="${art ? `background-image:url(${art})` : `background:${p.backgroundColor || "#333"}`}"><div><b>${esc(sem.eventName || p.eventLogoText || p.description)}</b><span style="font-size:13px">${subline}</span></div></div>
+    <div class="sect"><div class="t">Veranstaltungsort</div><div class="list">
+      ${mapSrc ? `<div class="map" data-map="${esc(mapSrc)}"></div>` : `<div class="map ph">Keine Koordinaten hinterlegt</div>`}
+      <div class="li"><span class="tx"><b>${esc(sem.venueName || "")}</b><br><span class="rt">${esc([sem.venueRoom, sem.venueRegionName].filter(Boolean).join(" · "))}</span></span>
+        ${route ? `<a href="${esc(route)}" target="_blank" rel="noopener" style="font-size:14px;text-decoration:none">Route</a>` : ""}</div></div></div>
+    ${sect("Öffnungszeiten", kvRows(items("Öffnungszeiten"), when))}
+    ${sect("Eingang", kvRows(items("Eingang")))}
+    ${sect("Mehr zum Event", items("Links & Schnellaktionen").map(link).join(""))}
+    ${sect("Weitere Infos", info)}
+    ${sect("Kontakt", items("Kontakt zum Veranstaltungsort").map((it, i) => link(it, i + 3)).join(""))}
+  </div>`;
+}
+
+let mapFrame = null;   // Karte beim Neuzeichnen wiederverwenden, damit sie nicht bei jedem Tastendruck neu lädt
 
 function renderPreview() {
   const p = state.pass; if (!p) return;
@@ -546,67 +764,22 @@ function renderPreview() {
   $("previewTabs").innerHTML = views.map(([k, l]) => `<button data-v="${k}" class="${k === state.previewStyle ? "on" : ""}">${l}</button>`).join("");
   $("previewTabs").querySelectorAll("button").forEach(b => b.onclick = () => { state.previewStyle = b.dataset.v; renderPreview(); });
   const v = state.previewStyle;
-  const bg = p.backgroundColor || "rgb(240,240,240)", fg = p.foregroundColor || "rgb(0,0,0)", lc = p.labelColor || fg;
-  const sem = p.semantics || {};
-  const code = (p.barcodes && p.barcodes[0]) || p.barcode;
-  const barcode = code ? `<div class="barcode"><div class="code ${/QR|Aztec/.test(code.format) ? "" : "linear"}"></div>${esc(code.altText || code.format.replace("PKBarcodeFormat", ""))}</div>` : "";
-  const fields = (style, group, cls) => ((p[style] || {})[group] || []).map(f => fieldHtml(f, cls)).join("");
-  let html;
-  if (v === "posterEvent" || v === "posterGeneric") {
-    const art = img("artwork"), plogo = img("primaryLogo"), slogo = img("secondaryLogo");
-    const style = v === "posterGeneric" ? "posterGeneric" : "eventTicket";
-    let title, sub;
-    if (v === "posterEvent") {
-      title = sem.homeTeamAbbreviation ? `${esc(sem.homeTeamAbbreviation)} vs ${esc(sem.awayTeamAbbreviation)}` : esc(sem.eventName || p.eventLogoText);
-      sub = [sem.venueName, sem.venueRoom, sem.eventStartDate && new Date(sem.eventStartDate).toLocaleString("de-DE", { dateStyle: "medium", timeStyle: "short" })].filter(Boolean).map(esc).join(" · ");
-      const seat = (sem.seats || [])[0];
-      if (seat) sub += `<div style="margin-top:6px;border-top:4px solid ${esc(seat.seatSectionColor || "transparent")};padding-top:6px">` +
-        [["Bereich", seat.seatSection], ["Reihe", seat.seatRow], ["Platz", seat.seatNumber]].filter(x => x[1]).map(([l, x]) => `<span style="margin-right:14px"><span class="fl">${l}</span> ${esc(x)}</span>`).join("") + "</div>";
-    } else {
-      title = fields(style, "primaryFields", "");
-      sub = `<div class="row">${fields(style, "footerFields", "")}</div>`;
+  const html = v === "posterEvent" ? posterEventHtml(p)
+    : v === "posterGeneric" ? posterGenericHtml(p)
+    : v === "eventGuide" ? guidePreview(p)
+    : v === "semanticBoarding" ? semanticBoardingHtml(p)
+    : v === "back" ? backHtml(p)
+    : v ? classicHtml(p, v) : `<p class="muted">Kein Pass-Stil gefunden.</p>`;
+  $("preview").innerHTML = `<div class="wl">${html}</div>`;
+  const slot = $("preview").querySelector("[data-map]");
+  if (slot) {
+    if (!mapFrame || mapFrame.dataset.src !== slot.dataset.map) {
+      mapFrame = document.createElement("iframe");
+      mapFrame.className = "map"; mapFrame.loading = "lazy"; mapFrame.title = "Karte";
+      mapFrame.src = mapFrame.dataset.src = slot.dataset.map;
     }
-    html = `<div class="pass poster" style="background-color:${bg};${art ? `background-image:url(${art});` : ""}color:${fg}">
-      <div class="poster-top"><div class="logo">${plogo ? `<img src="${plogo}">` : ""}<span>${esc(v === "posterEvent" ? p.eventLogoText : p.logoText)}</span></div>
-      <div style="text-align:right">${fields(style, "headerFields", "")}</div></div>
-      <div class="poster-bottom"><div class="event">${title}</div><div class="muted" style="color:#ddd">${sub}</div>
-      ${slogo ? `<div style="text-align:right"><img src="${slogo}" style="max-height:14px"></div>` : ""}</div></div>`;
-  } else if (v === "eventGuide") {
-    html = guidePreview(p);
-  } else if (v === "semanticBoarding") {
-    const n = sem.passengerName || {};
-    const t = (d) => d ? new Date(d).toLocaleTimeString("de-DE", { hour: "2-digit", minute: "2-digit", timeZone: sem.departureLocationTimeZone || undefined }) : "–";
-    html = `<div class="pass" style="background:${bg};color:${fg}">
-      <div class="row"><div class="logo">${img("primaryLogo") ? `<img src="${img("primaryLogo")}">` : ""}${esc(sem.transitProvider || p.logoText)}</div>
-        <div style="text-align:right"><div class="fl" style="color:${lc}">Flug</div><div class="fv">${esc(sem.airlineCode)}${esc(sem.flightNumber)}</div></div></div>
-      <div class="row primary"><div><div class="fl" style="color:${lc}">${esc(sem.departureCityName)}</div><div class="fv">${esc(sem.departureAirportCode)}</div><div>${t(sem.originalDepartureDate)}</div></div>
-        <div style="align-self:center;font-size:22px">✈︎</div>
-        <div style="text-align:right"><div class="fl" style="color:${lc}">${esc(sem.destinationCityName)}</div><div class="fv">${esc(sem.destinationAirportCode)}</div><div>${t(sem.originalArrivalDate)}</div></div></div>
-      <div><div class="fv" style="font-weight:600">${esc([n.givenName, n.familyName].filter(Boolean).join(" "))}</div>
-        <div>${[sem.ticketFareClass, sem.membershipProgramStatus, ...(sem.passengerServiceSSRs || [])].filter(Boolean).map(b => `<span class="badge" style="color:${fg};border-color:${lc};margin-right:4px">${esc(b)}</span>`).join("")}</div></div>
-      <div class="row left">${[["Boarding", t(sem.originalBoardingDate)], ["Gate", sem.departureGate], ["Gruppe", sem.boardingGroup || sem.boardingZone], ["Sitz", (sem.seats || [])[0]?.seatNumber]]
-        .filter(x => x[1]).map(([l, x]) => `<div><div class="fl" style="color:${lc}">${l}</div><div class="fv">${esc(x)}</div></div>`).join("")}</div>
-      ${barcode}</div>`;
-  } else if (v) {
-    const s = p[v] || {};
-    const strip = img("strip"), thumb = img("thumbnail"), back = v === "eventTicket" ? img("background") : null, logo = img("logo");
-    const label = (h) => h.replaceAll('class="fl"', `class="fl" style="color:${lc}"`);
-    let prim;
-    if (v === "boardingPass") {
-      const icon = { PKTransitTypeAir: "✈︎", PKTransitTypeTrain: "🚆", PKTransitTypeBus: "🚌", PKTransitTypeBoat: "⛴" }[s.transitType] || "→";
-      const [from, to] = s.primaryFields || [];
-      prim = `<div class="row primary">${from ? fieldHtml(from) : ""}<div style="align-self:center;font-size:22px">${icon}</div>${to ? fieldHtml({ ...to, textAlignment: "PKTextAlignmentRight" }) : ""}</div>`;
-    } else {
-      prim = `<div class="row primary"><div style="flex:1">${fields(v, "primaryFields", "")}</div>${thumb && (v === "generic" || v === "eventTicket") ? `<img src="${thumb}" style="max-width:70px;max-height:70px;border-radius:6px">` : ""}</div>`;
-    }
-    html = `<div class="pass" style="background-color:${bg};${back ? `background-image:linear-gradient(#0006,#0006),url(${back});` : ""}color:${fg}">
-      <div class="row"><div class="logo">${logo ? `<img src="${logo}">` : ""}<span>${esc(p.logoText)}</span></div><div class="row">${label(fields(v, "headerFields", ""))}</div></div>
-      ${strip && (v === "coupon" || v === "storeCard") ? `<div class="strip" style="background-image:url(${strip})">${label(fields(v, "primaryFields", "primary")).replace('<div class="primary"', '<div class="primary" style="padding:14px"')}</div>` : label(prim)}
-      ${v === "boardingPass" ? `<div class="row left">${label(fields(v, "auxiliaryFields", ""))}</div><div class="row left">${label(fields(v, "secondaryFields", ""))}</div>`
-        : `<div class="row left">${label(fields(v, "secondaryFields", ""))}</div><div class="row left">${label(fields(v, "auxiliaryFields", ""))}</div>`}
-      ${barcode}</div>`;
-  } else html = `<p class="muted">Kein Pass-Stil gefunden.</p>`;
-  $("preview").innerHTML = html;
+    slot.replaceWith(mapFrame);
+  }
 }
 
 function scheduleValidate() { clearTimeout(validateTimer); validateTimer = setTimeout(runValidate, 300); }
