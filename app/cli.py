@@ -10,7 +10,7 @@ import os
 import sys
 from pathlib import Path
 
-from sqlalchemy import select
+from sqlalchemy import func, select
 
 from .config import get_settings
 from .db import make_engine, make_sessionmaker
@@ -188,6 +188,81 @@ def cmd_jobs(args):
         print(f"  fehlgeschlagen {j.updated_at:%d.%m. %H:%M} {j.kind}: {j.last_error[:120]}")
 
 
+def cmd_seed_demo(args):
+    """Beispieldaten für den lokalen Testserver (nur mit WALLET_DEV_LOGIN=true)."""
+    from creatwallet.templates import new_pass, placeholder_images
+
+    from .certs import SignerProvider, make_store
+    from .models import Pass, User
+    from .services import approve_version, create_api_key, create_pass, create_template
+
+    settings, s = _session()
+    if not settings.dev_login:
+        sys.exit("Nur für lokale Tests: WALLET_DEV_LOGIN=true setzen.")
+    if s.scalars(select(Tenant).where(Tenant.name == "Kino am Markt GmbH")).first():
+        sys.exit("Beispieldaten sind schon vorhanden.")
+    cert = s.scalars(select(Certificate)).first()
+    if cert is None:
+        sys.exit("Zuerst ein Zertifikat hinzufügen: python -m app add-certificate --p12 …")
+
+    kino = Tenant(name="Kino am Markt GmbH", organization_name="Kino am Markt", status="active", plan="business",
+                  certificate=cert, contact_email="anna@kino.test", address="Marktplatz 1\n20095 Hamburg")
+    zoo = Tenant(name="Tierpark Nord GmbH", organization_name="Tierpark Nord", status="pending",
+                 contact_email="eva@tierpark.test")
+    s.add_all([kino, zoo])
+    s.flush()
+    s.add_all([
+        User(oidc_sub="dev:admin@plattform.test", email="admin@plattform.test", name="Plattform-Admin", is_admin=True),
+        User(oidc_sub="dev:anna@kino.test", email="anna@kino.test", name="Anna Kino", tenant_id=kino.id, role="owner"),
+        User(oidc_sub="dev:ben@kino.test", email="ben@kino.test", name="Ben Kasse", tenant_id=kino.id, role="issuer"),
+        User(oidc_sub="dev:eva@tierpark.test", email="eva@tierpark.test", name="Eva Tierpark", tenant_id=zoo.id,
+             role="owner"),
+    ])
+
+    ticket = new_pass("posterEventTicket")
+    ticket["description"] = "Kinoticket"
+    ticket["eventLogoText"] = ticket["logoText"] = "Kino am Markt"
+    ticket["organizationName"] = "Kino am Markt"
+    sem = ticket["semantics"]
+    sem.update({"eventName": "{{film}}", "venueName": "Kino am Markt", "venueRegionName": "Hamburg",
+                "venueRoom": "{{saal}}", "eventStartDate": "{{beginn}}", "attendeeName": "{{name}}",
+                "performerNames": ["Kino am Markt"]})
+    sem["eventStartDateInfo"] = {"date": "{{beginn}}", "timeZone": "Europe/Berlin"}
+    sem.pop("eventEndDate", None)
+    sem["seats"] = [{"seatRow": "{{reihe}}", "seatNumber": "{{platz}}", "seatSectionColor": "rgb(200, 30, 60)"}]
+    ticket["eventTicket"]["primaryFields"] = [{"key": "film", "label": "FILM", "value": "{{film}}"}]
+    ticket["eventTicket"]["secondaryFields"] = [
+        {"key": "saal", "label": "SAAL", "value": "{{saal}}"},
+        {"key": "beginn", "label": "BEGINN", "value": "{{beginn}}", "dateStyle": "PKDateStyleMedium",
+         "timeStyle": "PKDateStyleShort"}]
+    ticket["eventTicket"]["auxiliaryFields"] = [{"key": "reihe", "label": "REIHE", "value": "{{reihe}}"},
+                                                {"key": "platz", "label": "PLATZ", "value": "{{platz}}"}]
+    ticket["barcodes"] = [{"format": "PKBarcodeFormatQR", "message": "{{ticket}}", "messageEncoding": "iso-8859-1",
+                           "altText": "{{ticket}}"}]
+    for key in ("relevantDates", "transferURL", "merchandiseURL"):
+        ticket.pop(key, None)
+    template, version = create_template(s, kino, "Kinoticket", ticket,
+                                        placeholder_images("posterEventTicket", scales=(2, 3)), settings)
+    approve_version(version, "Beispiel")
+
+    signers = SignerProvider(make_store(settings), settings.wwdr_path)
+    from .security import Vault
+    vault = Vault(settings.secret_key)
+    films = [("Die Beispiele", "Saal 1", "2026-11-20T20:00+01:00", "Anna Beispiel", "5", "12"),
+             ("Hafenlichter", "Saal 2", "2026-11-21T18:30+01:00", "Max Mustermann", "8", "3"),
+             ("Nordwind", "Saal 1", "2026-11-22T21:00+01:00", "Lena Muster", "2", "7")]
+    for i, (film, saal, beginn, name, reihe, platz) in enumerate(films, 1):
+        create_pass(s, kino, template.id, {"film": film, "saal": saal, "beginn": beginn, "name": name,
+                                           "reihe": reihe, "platz": platz, "ticket": f"KAM-{1000 + i}"},
+                    settings, signers, vault)
+    s.flush()
+    _, key = create_api_key(s, kino, "Beispiel-Shop")
+    s.commit()
+    count = s.scalar(select(func.count(Pass.id)))
+    print(f"Beispieldaten angelegt: 2 Firmen, 4 Zugänge, 1 Vorlage, {count} Pässe.")
+    print(f"API-Schlüssel der Firma Kino am Markt:\n  {key}")
+
+
 def main(argv=None):
     p = argparse.ArgumentParser(prog="python -m app", description="Verwaltung der Wallet-Pass-Plattform")
     sub = p.add_subparsers(dest="cmd", required=True)
@@ -242,6 +317,7 @@ def main(argv=None):
     w.add_argument("--once", action="store_true", help="nur fällige Jobs abarbeiten und beenden")
     w.set_defaults(func=cmd_worker)
     sub.add_parser("jobs", help="Status der Hintergrundaufgaben").set_defaults(func=cmd_jobs)
+    sub.add_parser("seed-demo", help="Beispieldaten für den lokalen Testserver").set_defaults(func=cmd_seed_demo)
 
     args = p.parse_args(argv)
     args.func(args)

@@ -3,9 +3,22 @@
 <div class="center"><div class="card">
   <h1>Entwickler-Login</h1>
   <p class="lead">Nur für lokale Tests – in Produktion meldet man sich über Authentik an.</p>
+  <h2>Beispiel-Zugänge</h2>
+  {% for email, admin, label in [
+      ("admin@plattform.test", True, "Plattform-Admin – Prüfungen, Firmen, Zertifikate"),
+      ("anna@kino.test", False, "Kino am Markt · Inhaberin – alles im Portal"),
+      ("ben@kino.test", False, "Kino am Markt · Ausgabe – nur Pässe"),
+      ("eva@tierpark.test", False, "Tierpark Nord · Firma noch in Prüfung")] %}
+  <form method="post" action="/auth/dev-login" style="margin-bottom:8px">
+    <input type="hidden" name="csrf" value="{{ csrf }}"><input type="hidden" name="email" value="{{ email }}">
+    {% if admin %}<input type="hidden" name="admin" value="true">{% endif %}
+    <button style="width:100%;text-align:left"><strong>{{ email }}</strong><br><span class="small muted">{{ label }}</span></button>
+  </form>
+  {% endfor %}
+  <h2 style="margin-top:18px">Andere E-Mail</h2>
   <form method="post" action="/auth/dev-login">
     <input type="hidden" name="csrf" value="{{ csrf }}">
-    <label class="f">E-Mail<input type="email" name="email" required value="test@example.com"></label>
+    <label class="f">E-Mail (neue Adresse = neue Firma registrieren)<input type="email" name="email" required></label>
     <label class="f" style="flex-direction:row;align-items:center;gap:8px"><input type="checkbox" name="admin" value="true"> als Plattform-Admin</label>
     <button class="primary">Anmelden</button>
   </form>
