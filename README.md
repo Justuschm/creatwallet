@@ -265,6 +265,70 @@ python3 -m unittest discover -s tests -t .
 
 Die Tests erzeugen eigene Test-Zertifikate, bauen jede Vorlage und prüfen die Signatur mit `openssl cms -verify`.
 
+## 9. Plattform-API (Phase 1)
+
+Im Paket `app/` steckt die mandantenfähige Plattform: Firmen legen Vorlagen mit Platzhaltern an
+(`"value": "{{name}}"`) und geben per REST-API Pässe aus, die mit **deinem** Zertifikat signiert werden.
+Endkunden bekommen eine Download-Seite mit Button und QR-Code.
+
+**Lokal starten** (Python ≥ 3.11, SQLite):
+
+```bash
+pip install -e ".[server]"
+export WALLET_SECRET_KEY=$(python -m app generate-secret)   # gut aufbewahren
+export WALLET_WWDR=certs/AppleWWDRCAG4.cer
+python -m app migrate
+python -m app create-tenant --name "Kino Beispiel GmbH"            # gibt die Firmen-ID aus
+python -m app add-certificate --p12 certs/pass.p12 --tenant <ID>   # fragt das .p12-Passwort ab
+python -m app create-api-key --tenant <ID>                         # Schlüssel wird nur einmal angezeigt
+uvicorn app.api:create_app --factory --reload
+# API-Doku: http://localhost:8000/docs
+```
+
+**Ablauf für eine Firma:**
+
+```bash
+KEY=wk_…
+# 1. Vorlage aus einer Startvorlage anlegen (oder eigene pass.json + Bilder als base64 senden)
+curl -s -X POST localhost:8000/api/v1/templates -H "Authorization: Bearer $KEY" \
+     -H 'Content-Type: application/json' -d '{"name": "Konzert", "base_template": "posterEventTicket"}'
+# 2. Freigabe durch dich
+python -m app pending && python -m app approve <VORLAGEN-ID>
+# 3. Pass ausgeben - page_url an den Endkunden geben
+curl -s -X POST localhost:8000/api/v1/passes -H "Authorization: Bearer $KEY" \
+     -H 'Content-Type: application/json' -H 'Idempotency-Key: bestellung-4711' \
+     -d '{"template_id": "<VORLAGEN-ID>", "data": {}}'
+```
+
+| Endpunkt | Zweck |
+|---|---|
+| `GET /api/v1/account` | eigenes Konto, Zertifikat |
+| `GET/POST /api/v1/templates`, `GET/PATCH /api/v1/templates/{id}` | Vorlagen; jede Änderung ist eine neue Version, die freigegeben werden muss |
+| `POST /api/v1/templates/{id}/test-pass` | Test-Pass mit Beispielwerten, läuft nach 24 h ab |
+| `POST /api/v1/passes` | Pass ausgeben (`Idempotency-Key` verhindert Doppelte) |
+| `GET /api/v1/passes`, `GET/PATCH /api/v1/passes/{id}` | auflisten, abrufen, Felder ändern (neue Version) |
+| `POST /api/v1/passes/{id}/void` | Pass sperren |
+| `GET /api/v1/passes/{id}/pkpass` | Datei fürs eigene Backend (z. B. E-Mail-Anhang) |
+| `GET /p/{token}` | öffentliche Seite für Endkunden; `/p/{token}/pass.pkpass` lädt den Pass |
+
+**Auf einem Server:** `deploy/` enthält Dockerfile, `docker-compose.yml` (PostgreSQL, API, Caddy mit
+automatischem HTTPS) und `.env.example`. Ablauf steht oben in `deploy/docker-compose.yml`.
+
+**Einstellungen** (Umgebungsvariablen, auch als `…_FILE`):
+
+| Variable | Bedeutung |
+|---|---|
+| `WALLET_DATABASE_URL` | z. B. `postgresql+psycopg://user:pw@host/wallet` (Standard: SQLite-Datei) |
+| `WALLET_PUBLIC_BASE_URL` | öffentliche Adresse für Download-Links |
+| `WALLET_SECRET_KEY` | Fernet-Schlüssel für gespeicherte Geheimnisse |
+| `WALLET_WWDR` | Apple-WWDR-Zertifikat |
+| `WALLET_CERT_BACKEND` | `file` (verschlüsselt in `WALLET_CERT_DIR`) oder `openbao` (`WALLET_OPENBAO_ADDR`, `…_TOKEN`) |
+| `WALLET_REQUIRE_TEMPLATE_APPROVAL` | `true`: Vorlagen erst nach Freigabe nutzbar |
+| `WALLET_APPLE_WEB_SERVICE` | `true` trägt den Update-Dienst in die Pässe ein (erst mit Phase 2 einschalten) |
+
+Für den Livebetrieb den Button auf der Download-Seite durch Apples offizielles
+„Add to Apple Wallet“-Badge ersetzen (Apple-Richtlinien).
+
 ## Quellen
 
 - [Apple: Wallet Passes – Pass (pass.json)](https://developer.apple.com/documentation/walletpasses/pass)

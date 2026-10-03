@@ -14,3 +14,7 @@ certs/
 .env.*
 !.env.example
 .claude/settings.local.json
+
+# Plattform: lokale Datenbank und Zertifikatsspeicher
+*.db
+deploy/certs/

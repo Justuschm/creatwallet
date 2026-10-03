@@ -1,0 +1,12 @@
+# HTTPS mit automatischem Let's-Encrypt-Zertifikat für WALLET_DOMAIN.
+{$WALLET_DOMAIN} {
+	encode gzip
+	request_body {
+		max_size 15MB
+	}
+	header {
+		Strict-Transport-Security "max-age=31536000; includeSubDomains"
+		-Server
+	}
+	reverse_proxy api:8000
+}

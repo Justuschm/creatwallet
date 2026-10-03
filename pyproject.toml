@@ -10,11 +10,23 @@ readme = "README.md"
 requires-python = ">=3.9"
 dependencies = ["cryptography>=41"]
 
+[project.optional-dependencies]
+# Plattform-API (Python >= 3.11): pip install -e ".[server]"
+server = [
+    "fastapi>=0.115",
+    "uvicorn[standard]>=0.30",
+    "sqlalchemy>=2.0",
+    "alembic>=1.13",
+    "psycopg[binary]>=3.2",
+    "httpx>=0.27",
+    "segno>=1.6",
+]
+
 [project.scripts]
 creatwallet = "creatwallet.cli:main"
 
 [tool.setuptools]
-packages = ["creatwallet"]
+packages = ["creatwallet", "app", "app.api"]
 
 [tool.setuptools.package-data]
 creatwallet = ["web/*.html"]
