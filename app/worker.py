@@ -146,7 +146,8 @@ class Worker:
             # Nur die fehlgeschlagenen Geräte später erneut versuchen.
             retry = jobs.enqueue(s, jobs.PUSH, {"pass_id": p.id, "device_ids": failed,
                                                 "round": payload.get("round", 0) + 1},
-                                 delay_seconds=BACKOFF[min(payload.get("round", 0), len(BACKOFF) - 1)])
+                                 delay_seconds=BACKOFF[min(payload.get("round", 0), len(BACKOFF) - 1)],
+                                 tenant_id=p.tenant_id)
             retry.last_error = last_reason[:2000]
             if payload.get("round", 0) + 1 > len(BACKOFF):
                 retry.status = "failed"

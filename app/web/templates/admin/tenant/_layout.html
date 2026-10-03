@@ -1,0 +1,42 @@
+{% extends "base.html" %}{% import "_ui.html" as ui %}
+{% set area = "admin" %}{% set active = "tenants" %}
+{% block title %}{{ t.name }} · {{ section or "Übersicht" }}{% endblock %}
+{% block content %}
+<div class="crumb"><a href="/admin/tenants">Firmen</a> /</div>
+{# Farbe aus der Firmen-ID: jede Firma hat ihre eigene, gut unterscheidbare Kennfarbe #}
+{% set hue = (t.id[:6] | int(base=16)) % 360 %}
+<div class="company">
+  <div class="company-top">
+    <div class="company-id">
+      <div class="avatar" style="background:hsl({{ hue }} 55% 45%)">{{ t.name[:2] | upper }}</div>
+      <div><h1>{{ t.name }}</h1>
+        <div class="sub">{{ t.organization_name }} · Tarif {{ t.plan }} · Kunde seit {{ t.created_at | d }} · <span class="mono">{{ t.id[:8] }}</span></div></div>
+    </div>
+    <div class="actions" style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+      {{ ui.badge(t.status) }}
+      {% if t.status != "active" %}
+      <form method="post" action="/admin/tenants/{{ t.id }}/status" class="inline">
+        <input type="hidden" name="csrf" value="{{ csrf }}"><input type="hidden" name="note" value="">
+        <button class="primary" name="status" value="active">{{ ui.icon("check", 16) }} Freischalten</button></form>
+      {% endif %}
+      {% if t.status != "suspended" %}<button class="danger" data-open="suspend">Sperren</button>{% endif %}
+    </div>
+  </div>
+  <nav class="tabs-nav" aria-label="Firmenmenü">
+    {% for key, label, path in tabs %}
+    <a href="/admin/tenants/{{ t.id }}{{ path }}" class="{{ 'on' if key == tab }}">{{ label }}{% if counts.get(key) %}<span class="n {{ 'err' if key == 'jobs' }}">{{ counts[key] }}</span>{% endif %}</a>
+    {% endfor %}
+  </nav>
+</div>
+{% if t.status == "suspended" and t.review_note %}<div class="msg error">Gesperrt: {{ t.review_note }}</div>{% endif %}
+{% block tenant %}{% endblock %}
+
+{% call ui.dialog("suspend", "Firma sperren") %}
+<form method="post" action="/admin/tenants/{{ t.id }}/status">
+  <input type="hidden" name="csrf" value="{{ csrf }}">
+  <p>Neue Pässe und Updates stoppen. Bereits ausgegebene Pässe bleiben in den Wallets der Kunden.</p>
+  <label class="f">Begründung (sieht die Firma)<input type="text" name="note" maxlength="2000" required></label>
+  <div class="foot"><button type="button" data-close>Abbrechen</button><button class="danger" name="status" value="suspended">Sperren</button></div>
+</form>
+{% endcall %}
+{% endblock %}

@@ -75,20 +75,6 @@ def tenants(request: Request, status: str = "", user: User = Depends(admin_user)
     return render(request, "admin/tenants.html", user, tenants=rows, counts=counts, status=status)
 
 
-@router.get("/tenants/{tenant_id}")
-def tenant_detail(tenant_id: str, request: Request, user: User = Depends(admin_user),
-                  session: Session = Depends(get_session)):
-    t = services.tenant_by_id(session, tenant_id)
-    members = session.scalars(select(User).where(User.tenant_id == t.id)).all()
-    templates = services.list_templates(session, t)
-    certs = session.scalars(select(Certificate).order_by(Certificate.pass_type_identifier)).all()
-    log = session.scalars(select(AuditLog).where(AuditLog.tenant_id == t.id)
-                          .order_by(AuditLog.created_at.desc()).limit(20)).all()
-    active = session.scalar(select(func.count(Pass.id)).where(Pass.tenant_id == t.id, Pass.status == "active"))
-    return render(request, "admin/tenant_detail.html", user, t=t, members=members, templates=templates, certs=certs,
-                  log=log, active=active, plans=PLANS)
-
-
 @router.post("/tenants/{tenant_id}/status")
 def tenant_status(tenant_id: str, request: Request, status: str = Form(...), note: str = Form(""),
                   user: User = Depends(admin_user), session: Session = Depends(get_session)):
@@ -226,7 +212,8 @@ def jobs_page(request: Request, status: str = "failed", user: User = Depends(adm
               session: Session = Depends(get_session)):
     counts = dict(session.execute(select(Job.status, func.count()).group_by(Job.status)).all())
     rows = session.scalars(select(Job).where(Job.status == status).order_by(Job.updated_at.desc()).limit(100)).all()
-    return render(request, "admin/jobs.html", user, rows=rows, counts=counts, status=status)
+    names = dict(session.execute(select(Tenant.id, Tenant.name)).all())
+    return render(request, "admin/jobs.html", user, rows=rows, counts=counts, status=status, names=names)
 
 
 @router.post("/jobs/{job_id}/retry")

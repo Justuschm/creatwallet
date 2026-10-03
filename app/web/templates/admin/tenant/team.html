@@ -1,0 +1,13 @@
+{% extends "admin/tenant/_layout.html" %}{% import "_ui.html" as ui %}{% set section = "Team" %}
+{% block tenant %}
+<div class="cols">
+  <div class="card"><div class="card-h"><h2>Mitglieder</h2><span class="hint">{{ members | length }} Personen</span></div>
+    {% if members %}<table><thead><tr><th>Person</th><th>Rolle</th><th class="right">Zuletzt angemeldet</th></tr></thead>
+      <tbody>{% for m in members %}<tr><td><b>{{ m.name or m.email }}</b><div class="small muted">{{ m.email }}</div></td><td>{{ ROLES[m.role] }}</td><td class="right small nowrap">{{ m.last_login_at | dt }}</td></tr>{% endfor %}</tbody></table>
+    {% else %}{{ ui.empty("Niemand.") }}{% endif %}</div>
+  <div class="card"><div class="card-h"><h2>Einladungen</h2></div>
+    {% if invites %}<table><tbody>{% for i in invites %}<tr><td>{{ i.email }}<div class="small muted">{{ ROLES[i.role] }}</div></td>
+      <td class="right">{% if i.accepted_at %}{{ ui.badge("done") }}{% else %}<span class="small muted">bis {{ i.expires_at | d }}</span>{% endif %}</td></tr>{% endfor %}</tbody></table>
+    {% else %}{{ ui.empty("Keine Einladungen.") }}{% endif %}</div>
+</div>
+{% endblock %}

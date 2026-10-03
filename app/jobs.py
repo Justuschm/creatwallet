@@ -13,8 +13,9 @@ WEBHOOK = "webhook"
 EVENTS = ("pass.installed", "pass.removed", "pass.updated", "pass.voided")
 
 
-def enqueue(session, kind, payload, delay_seconds=0):
-    job = Job(kind=kind, payload=payload, run_after=utcnow() + timedelta(seconds=delay_seconds))
+def enqueue(session, kind, payload, delay_seconds=0, tenant_id=None):
+    job = Job(kind=kind, payload=payload, tenant_id=tenant_id,
+              run_after=utcnow() + timedelta(seconds=delay_seconds))
     session.add(job)
     return job
 
@@ -25,7 +26,7 @@ def enqueue_push(session, pass_obj, device_ids=None):
         count = session.scalar(select(func.count(Registration.id)).where(Registration.pass_id == pass_obj.id))
         if not count:
             return None
-    return enqueue(session, PUSH, {"pass_id": pass_obj.id, "device_ids": device_ids})
+    return enqueue(session, PUSH, {"pass_id": pass_obj.id, "device_ids": device_ids}, tenant_id=pass_obj.tenant_id)
 
 
 def emit(session, tenant_id, event, data):
@@ -37,7 +38,7 @@ def emit(session, tenant_id, event, data):
     for ep in endpoints:
         if event in (ep.events or []):
             enqueue(session, WEBHOOK, {"endpoint_id": ep.id, "body": {
-                "id": event_id, "type": event, "created_at": created, "data": data}})
+                "id": event_id, "type": event, "created_at": created, "data": data}}, tenant_id=tenant_id)
 
 
 def pass_event_data(pass_obj):

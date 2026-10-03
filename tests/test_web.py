@@ -189,9 +189,16 @@ class PortalFlowTests(WebCase):
         for url in ("/portal", "/portal/templates", "/portal/stats", "/portal/stats?days=90", "/portal/team",
                     "/portal/settings", "/portal/developers"):
             self.assertEqual(c.get(url).status_code, 200, url)
-        for url in ("/admin", "/admin/tenants", "/admin/tenants?status=active", f"/admin/tenants/{self.tenant().id}",
-                    "/admin/certificates", "/admin/jobs", "/admin/jobs?status=done", "/admin/audit"):
+        tid_ = self.tenant().id
+        for url in ("/admin", "/admin/tenants", "/admin/tenants?status=active", "/admin/certificates", "/admin/jobs",
+                    "/admin/jobs?status=done", "/admin/audit"):
             self.assertEqual(admin.get(url).status_code, 200, url)
+        # Firmenbereich: alle Menüpunkte
+        for sub in ("", "/templates", f"/templates/{tid}", "/passes", "/passes?q=Bert", f"/passes/{pid}", "/team",
+                    "/integrations", "/jobs", "/jobs?status=failed", "/activity"):
+            r = admin.get(f"/admin/tenants/{tid_}{sub}")
+            self.assertEqual(r.status_code, 200, sub)
+            self.assertIn("Kino am Markt", r.text)
         with self.Session() as s:
             actions = {a.action for a in s.query(AuditLog)}
         self.assertTrue({"tenant.signup", "admin.template.approve", "pass.void", "apikey.create"} <= actions)
@@ -209,6 +216,29 @@ class PortalFlowTests(WebCase):
     def first_template_id(self):
         with self.Session() as s:
             return s.query(Template).first().id
+
+
+class CompanyAreaTests(WebCase):
+    def test_no_mixing_between_companies(self):
+        kino = self.company()
+        self.post(kino, "/portal/templates", {"name": "Kinokarte", "base": "generic"})
+        zoo = self.company("eva@zoo.test", "Zoo GmbH")
+        self.post(zoo, "/portal/keys", {"name": "Zoo-Shop"})
+        admin = self.login("chef@plattform.test", admin=True)
+        kino_id, zoo_id = self.tenant().id, self.tenant("Zoo GmbH").id
+        with self.Session() as s:
+            tpl_id = s.query(Template).one().id
+            from app.models import ApiKey
+            zoo_key = s.query(ApiKey).one().id
+        # Vorlage der einen Firma ist im Bereich der anderen nicht erreichbar
+        self.assertEqual(admin.get(f"/admin/tenants/{zoo_id}/templates/{tpl_id}").status_code, 404)
+        self.assertNotIn("Kinokarte", admin.get(f"/admin/tenants/{zoo_id}/templates").text)
+        self.assertIn("Kinokarte", admin.get(f"/admin/tenants/{kino_id}/templates").text)
+        # Schlüssel der Zoo GmbH kann nicht über den Bereich des Kinos widerrufen werden
+        r = self.post(admin, f"/admin/tenants/{kino_id}/keys/{zoo_key}/revoke", page="/admin")
+        self.assertEqual(r.status_code, 404)
+        r = self.post(admin, f"/admin/tenants/{zoo_id}/keys/{zoo_key}/revoke", page="/admin")
+        self.assertIn("widerrufen", r.text)
 
 
 class NoApprovalTests(WebCase):

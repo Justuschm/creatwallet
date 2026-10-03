@@ -369,7 +369,7 @@ def create_webhook(session, tenant, url, events, settings, vault):
 def send_test_webhook(session, ep):
     jobs.enqueue(session, jobs.WEBHOOK, {"endpoint_id": ep.id, "body": {
         "id": "evt_test_" + random_token(8), "type": "webhook.test",
-        "created_at": utcnow().isoformat(timespec="seconds"), "data": {}}})
+        "created_at": utcnow().isoformat(timespec="seconds"), "data": {}}}, tenant_id=ep.tenant_id)
 
 
 __all__ = ["ServiceError", "Vault"]

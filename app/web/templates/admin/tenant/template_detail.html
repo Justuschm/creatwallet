@@ -1,0 +1,22 @@
+{% extends "admin/tenant/_layout.html" %}{% import "_ui.html" as ui %}{% set section = tpl.name %}
+{% block tenant %}
+<div class="page-head" style="margin-bottom:16px">
+  <div><div class="crumb"><a href="/admin/tenants/{{ t.id }}/templates">Vorlagen</a> /</div><h1 style="font-size:18px">{{ tpl.name }} <span class="muted">v{{ version.number }}</span></h1></div>
+  <div class="actions">{% if approval and tpl.latest_version.status == "pending" %}<a class="btn primary" href="/admin/reviews/{{ tpl.latest_version.id }}">Neue Version prüfen</a>{% endif %}</div>
+</div>
+<div class="cols">
+  <div class="stack">
+    <div class="card"><div class="card-h"><h2>Bilder</h2><span class="hint">{{ images | length }} Dateien</span></div>
+      <div class="card-b"><div class="thumbs">{% for name, b64 in images.items() %}<figure><img src="data:image/png;base64,{{ b64 }}" alt="">{{ name }}</figure>{% endfor %}</div></div></div>
+    <div class="card"><div class="card-h"><h2>pass.json</h2><div class="chips">{% for p in placeholders %}<code>{{ p }}</code>{% endfor %}</div></div>
+      <div class="card-b"><pre style="max-height:520px">{{ pass_json }}</pre></div></div>
+  </div>
+  <div class="stack">
+    <div class="card"><div class="card-h"><h2>Versionen</h2></div>
+      <table><tbody>{% for v in tpl.versions | reverse %}<tr><td><b>{{ v.number }}</b>{% if tpl.approved_version and v.id == tpl.approved_version.id %} <span class="badge active">aktiv</span>{% endif %}</td><td>{{ ui.badge(v.status) }}</td><td class="right small nowrap">{{ v.created_at | dt }}</td></tr>{% endfor %}</tbody></table></div>
+    {% set problems = issues | selectattr("level", "in", ["error", "warning"]) | list %}
+    <div class="card"><div class="card-h"><h2>Apple-Regeln</h2>{% if not problems %}{{ ui.badge("done") }}{% endif %}</div>
+      <div class="card-b">{% if problems %}<ul class="issues">{% for i in problems %}<li class="{{ i.level }}"><code>{{ i.path }}</code> {{ i.message }}</li>{% endfor %}</ul>{% else %}<p class="muted">Keine Fehler oder Warnungen.</p>{% endif %}</div></div>
+  </div>
+</div>
+{% endblock %}

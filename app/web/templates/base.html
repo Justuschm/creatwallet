@@ -64,6 +64,19 @@
   .page-head .actions { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
   .crumb { font-size: 12.5px; margin-bottom: 6px; } .crumb a { color: var(--muted); }
 
+  /* Firmenbereich im Admin: fester Kopf + eigenes Menü */
+  .company { background: var(--panel); border: 1px solid var(--line); border-radius: 14px; margin-bottom: 20px; box-shadow: var(--shadow); }
+  .company-top { display: flex; gap: 16px; align-items: center; justify-content: space-between; flex-wrap: wrap; padding: 18px 20px 14px; }
+  .company-id { display: flex; gap: 14px; align-items: center; min-width: 0; }
+  .avatar { width: 44px; height: 44px; border-radius: 12px; display: grid; place-items: center; font-weight: 700; font-size: 16px; color: #fff; flex: none; }
+  .company-id h1 { font-size: 20px; } .company-id .sub { color: var(--muted); font-size: 12.5px; margin-top: 2px; }
+  .tabs-nav { display: flex; gap: 2px; padding: 0 12px; border-top: 1px solid var(--line); overflow-x: auto; }
+  .tabs-nav a { padding: 11px 12px; color: var(--muted); font-weight: 500; border-bottom: 2px solid transparent; white-space: nowrap; display: inline-flex; gap: 6px; align-items: center; }
+  .tabs-nav a:hover { color: var(--text); text-decoration: none; }
+  .tabs-nav a.on { color: var(--accent-text); border-bottom-color: var(--accent); }
+  .tabs-nav .n { font-size: 11px; background: var(--code); color: var(--muted); padding: 0 7px; border-radius: 99px; }
+  .tabs-nav .n.err { background: var(--err-soft); color: var(--err); }
+
   /* Raster */
   .cols { display: grid; grid-template-columns: minmax(0, 1fr) minmax(300px, 380px); gap: 20px; align-items: start; }
   .cols-2 { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 20px; align-items: start; }
@@ -98,7 +111,7 @@
   .badge { display: inline-flex; align-items: center; gap: 6px; font-size: 12px; font-weight: 600; padding: 2px 9px; border-radius: 99px; background: var(--code); color: var(--muted); white-space: nowrap; }
   .badge::before { content: ""; width: 6px; height: 6px; border-radius: 50%; background: currentColor; }
   .badge.active, .badge.approved, .badge.done { background: var(--ok-soft); color: var(--ok); }
-  .badge.pending, .badge.running { background: var(--warn-soft); color: var(--warn); }
+  .badge.pending, .badge.running, .badge.paused { background: var(--warn-soft); color: var(--warn); }
   .badge.suspended, .badge.voided, .badge.rejected, .badge.failed, .badge.revoked { background: var(--err-soft); color: var(--err); }
   .chips { display: flex; flex-wrap: wrap; gap: 6px; }
   .chips code { background: var(--accent-soft); color: var(--accent-text); }

@@ -1,0 +1,10 @@
+{% extends "admin/tenant/_layout.html" %}{% import "_ui.html" as ui %}{% set section = "Aktivität" %}
+{% block tenant %}
+<div class="card">
+  {% if rows %}<table><thead><tr><th>Zeit</th><th>Wer</th><th>Aktion</th><th>Details</th></tr></thead>
+    <tbody>{% for e in rows %}<tr><td class="small nowrap">{{ e.created_at | dt }}</td><td class="small">{{ e.actor }}</td><td><code>{{ e.action }}</code></td><td class="small muted mono">{{ e.details | tojson if e.details else "" }}</td></tr>{% endfor %}</tbody></table>
+  <div class="toolbar" style="border-top:1px solid var(--line);border-bottom:0;justify-content:space-between">
+    <span>{% if page_no > 1 %}<a href="?page_no={{ page_no - 1 }}">← Neuere</a>{% endif %}</span><span class="small muted">Seite {{ page_no }}</span><span>{% if more %}<a href="?page_no={{ page_no + 1 }}">Ältere →</a>{% endif %}</span></div>
+  {% else %}{{ ui.empty("Noch keine Aktivität.") }}{% endif %}
+</div>
+{% endblock %}

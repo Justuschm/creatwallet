@@ -1,0 +1,26 @@
+{% extends "admin/tenant/_layout.html" %}{% import "_ui.html" as ui %}{% set section = p.serial_number %}
+{% block tenant %}
+<div class="page-head" style="margin-bottom:16px">
+  <div><div class="crumb"><a href="/admin/tenants/{{ t.id }}/passes">Pässe</a> /</div><h1 class="mono" style="font-size:18px">{{ p.serial_number }}</h1>
+    <div class="sub">{{ p.template.name }} · Version {{ p.version }} · geändert {{ p.updated_at | dt }}</div></div>
+  <div class="actions">{{ ui.badge(p.status) }}<a class="btn" href="{{ page_url }}" target="_blank" rel="noopener">{{ ui.icon("external", 16) }} Kundenseite</a>
+    {% if p.status == "active" %}<form method="post" action="/admin/tenants/{{ t.id }}/passes/{{ p.id }}/void" class="inline" data-confirm="Pass im Namen der Firma sperren?"><input type="hidden" name="csrf" value="{{ csrf }}"><button class="danger">Sperren</button></form>{% endif %}</div>
+</div>
+<div class="cols">
+  <div class="stack">
+    <div class="card"><div class="card-h"><h2>Inhalt</h2></div>
+      <table class="kv"><tbody>{% for k, val in p.data.items() %}<tr><td>{{ k }}</td><td>{{ val }}</td></tr>{% else %}<tr><td class="muted">Keine Felder.</td></tr>{% endfor %}</tbody></table></div>
+    <div class="card"><div class="card-h"><h2>Push-Jobs dieses Passes</h2></div>
+      {% if pass_jobs %}<table><thead><tr><th>Status</th><th>Versuche</th><th>Fehler</th><th class="right">Erstellt</th></tr></thead>
+        <tbody>{% for j in pass_jobs %}<tr><td>{{ ui.badge(j.status) }}</td><td>{{ j.attempts }}</td><td class="small">{{ j.last_error[:160] or "–" }}</td><td class="right small nowrap">{{ j.created_at | dt }}</td></tr>{% endfor %}</tbody></table>
+      {% else %}{{ ui.empty("Noch keine Pushes.") }}{% endif %}</div>
+  </div>
+  <div class="card"><div class="card-h"><h2>Details</h2></div>
+    <table class="kv"><tbody>
+      <tr><td>Status</td><td>{{ ui.badge(p.status) }}</td></tr>
+      <tr><td>Geräte</td><td>{{ p.registrations | length }}</td></tr>
+      <tr><td>Erstellt</td><td>{{ p.created_at | dt }}</td></tr>
+      <tr><td>Pass-ID</td><td class="mono small">{{ p.id }}</td></tr>
+    </tbody></table></div>
+</div>
+{% endblock %}

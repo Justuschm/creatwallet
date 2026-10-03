@@ -199,6 +199,8 @@ class Job(Base):
 
     id: Mapped[str] = mapped_column(String(36), primary_key=True, default=new_id)
     kind: Mapped[str] = mapped_column(String(40))
+    # Firma, zu der der Job gehört - für die Ansicht je Firma im Admin-Bereich
+    tenant_id: Mapped[str | None] = mapped_column(String(36), nullable=True, index=True)
     payload: Mapped[dict] = mapped_column(JSONType, default=dict)
     status: Mapped[str] = mapped_column(String(20), default="pending", index=True)  # pending|running|done|failed
     attempts: Mapped[int] = mapped_column(Integer, default=0)

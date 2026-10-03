@@ -5,8 +5,8 @@
   <div class="actions">{% for s, label in (("failed", "Fehlgeschlagen"), ("pending", "Wartend"), ("running", "Läuft"), ("done", "Erledigt")) %}<a class="btn small {{ 'primary' if s == status }}" href="?status={{ s }}">{{ label }} · {{ counts.get(s, 0) }}</a>{% endfor %}</div></div>
 <div class="card">
   {% if rows %}
-  <table><thead><tr><th>Art</th><th>Versuche</th><th>Nächster Lauf</th><th>Letzter Fehler</th><th></th></tr></thead>
-    <tbody>{% for j in rows %}<tr><td><code>{{ j.kind }}</code></td><td>{{ j.attempts }}</td><td class="small nowrap">{{ j.run_after | dt }}</td>
+  <table><thead><tr><th>Art</th><th>Firma</th><th>Versuche</th><th>Nächster Lauf</th><th>Letzter Fehler</th><th></th></tr></thead>
+    <tbody>{% for j in rows %}<tr><td><code>{{ j.kind }}</code></td><td>{% if j.tenant_id %}<a href="/admin/tenants/{{ j.tenant_id }}/jobs">{{ names.get(j.tenant_id, "–") }}</a>{% else %}–{% endif %}</td><td>{{ j.attempts }}</td><td class="small nowrap">{{ j.run_after | dt }}</td>
       <td class="small">{{ j.last_error[:240] or "–" }}</td>
       <td class="right">{% if j.status in ("failed", "pending") %}<form class="inline" method="post" action="/admin/jobs/{{ j.id }}/retry"><input type="hidden" name="csrf" value="{{ csrf }}"><button class="small">Jetzt erneut</button></form>{% endif %}</td></tr>{% endfor %}</tbody></table>
   {% else %}{{ ui.empty("Keine Jobs mit diesem Status.") }}{% endif %}

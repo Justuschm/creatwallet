@@ -29,7 +29,7 @@
 {% macro badge(status) -%}
 {%- set labels = {"active": "aktiv", "pending": "in Prüfung", "suspended": "gesperrt", "approved": "freigegeben",
                   "rejected": "abgelehnt", "voided": "gesperrt", "done": "erledigt", "failed": "fehlgeschlagen",
-                  "running": "läuft", "revoked": "widerrufen", "invited": "eingeladen"} -%}
+                  "running": "läuft", "revoked": "widerrufen", "invited": "eingeladen", "paused": "pausiert"} -%}
 <span class="badge {{ status }}">{{ labels.get(status, status) }}</span>
 {%- endmacro %}
 

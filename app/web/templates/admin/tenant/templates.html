@@ -1,0 +1,18 @@
+{% extends "admin/tenant/_layout.html" %}{% import "_ui.html" as ui %}{% set section = "Vorlagen" %}
+{% block tenant %}
+<div class="card">
+  {% if templates %}
+  <table>
+    <thead><tr><th>Name</th><th>Status</th><th>Aktive Version</th><th>Platzhalter</th><th class="right">Pässe</th><th class="right">Geändert</th></tr></thead>
+    <tbody>{% for tpl in templates %}
+    <tr><td><a href="/admin/tenants/{{ t.id }}/templates/{{ tpl.id }}"><b>{{ tpl.name }}</b></a></td>
+      <td>{{ ui.badge("active" if tpl.approved_version else tpl.latest_version.status) }}
+          {% if approval and tpl.latest_version.status == "pending" %}<a class="btn small primary" href="/admin/reviews/{{ tpl.latest_version.id }}">Prüfen</a>{% endif %}</td>
+      <td>{{ tpl.approved_version.number if tpl.approved_version else "–" }} <span class="muted small">von {{ tpl.latest_version.number }}</span></td>
+      <td><div class="chips">{% for p in tpl.latest_version.pass_json | placeholders %}<code>{{ p }}</code>{% else %}<span class="muted">–</span>{% endfor %}</div></td>
+      <td class="right">{{ usage.get(tpl.id, 0) }}</td><td class="right small nowrap">{{ tpl.updated_at | dt }}</td></tr>
+    {% endfor %}</tbody>
+  </table>
+  {% else %}{{ ui.empty("Diese Firma hat noch keine Vorlagen.") }}{% endif %}
+</div>
+{% endblock %}

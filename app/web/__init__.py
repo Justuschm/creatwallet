@@ -8,7 +8,7 @@ from fastapi.responses import RedirectResponse
 from starlette.middleware.sessions import SessionMiddleware
 
 from ..services import ServiceError
-from . import admin, auth, portal
+from . import admin, admin_tenant, auth, portal
 from .core import Forbidden, LoginRequired, Redirect, render
 
 
@@ -42,6 +42,7 @@ def install(app):
     app.include_router(auth.router)
     app.include_router(portal.router)
     app.include_router(admin.router)
+    app.include_router(admin_tenant.router)
 
 
 def html_error(request: Request, exc: ServiceError):

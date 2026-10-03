@@ -1,0 +1,11 @@
+{% extends "admin/tenant/_layout.html" %}{% import "_ui.html" as ui %}{% set section = "Jobs" %}
+{% block tenant %}
+<div class="card">
+  <div class="toolbar">{% for s, label in (("", "Alle"), ("failed", "Fehlgeschlagen"), ("pending", "Wartend"), ("done", "Erledigt")) %}<a class="btn small {{ 'primary' if s == status }}" href="?status={{ s }}">{{ label }}{% if s %} · {{ by_status.get(s, 0) }}{% endif %}</a>{% endfor %}</div>
+  {% if rows %}<table><thead><tr><th>Art</th><th>Status</th><th>Versuche</th><th>Letzter Fehler</th><th class="right">Aktualisiert</th><th></th></tr></thead>
+    <tbody>{% for j in rows %}<tr><td><code>{{ j.kind }}</code></td><td>{{ ui.badge(j.status) }}</td><td>{{ j.attempts }}</td><td class="small">{{ j.last_error[:200] or "–" }}</td>
+      <td class="right small nowrap">{{ j.updated_at | dt }}</td>
+      <td class="right">{% if j.status in ("failed", "pending") %}<form class="inline" method="post" action="/admin/tenants/{{ t.id }}/jobs/{{ j.id }}/retry"><input type="hidden" name="csrf" value="{{ csrf }}"><button class="small">Jetzt erneut</button></form>{% endif %}</td></tr>{% endfor %}</tbody></table>
+  {% else %}{{ ui.empty("Keine Jobs für diese Firma.") }}{% endif %}
+</div>
+{% endblock %}
