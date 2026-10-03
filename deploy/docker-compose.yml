@@ -4,7 +4,8 @@
 #   cp .env.example .env && nano .env          # Domain, Passwörter, Schlüssel
 #   mkdir -p certs && cp /pfad/AppleWWDRCAG4.cer certs/
 #   docker compose up -d --build
-#   docker compose exec api python -m app create-tenant --name "Erste Firma"
+#   Danach: https://WALLET_DOMAIN öffnen, mit "akadmin" und AUTHENTIK_BOOTSTRAP_PASSWORD anmelden
+#   (Zwei-Faktor wird beim ersten Login eingerichtet) - akadmin ist Plattform-Admin.
 #
 services:
   db:
@@ -39,6 +40,11 @@ services:
       WALLET_CERT_DIR: /data/certs
       WALLET_REQUIRE_TEMPLATE_APPROVAL: ${WALLET_REQUIRE_TEMPLATE_APPROVAL:-true}
       WALLET_APPLE_WEB_SERVICE: ${WALLET_APPLE_WEB_SERVICE:-true}
+      WALLET_OIDC_ISSUER: https://${WALLET_AUTH_DOMAIN:?Bitte WALLET_AUTH_DOMAIN in .env setzen}/application/o/wallet/
+      WALLET_OIDC_CLIENT_ID: wallet-platform
+      WALLET_OIDC_CLIENT_SECRET: ${WALLET_OIDC_CLIENT_SECRET:?Bitte WALLET_OIDC_CLIENT_SECRET in .env setzen}
+      WALLET_ADMIN_NETWORKS: ${WALLET_ADMIN_NETWORKS:-}
+      WALLET_ALLOW_SIGNUP: ${WALLET_ALLOW_SIGNUP:-true}
       WEB_WORKERS: ${WEB_WORKERS:-2}
     volumes:
       - ./certs:/data/wwdr:ro
@@ -60,16 +66,62 @@ services:
     healthcheck:
       disable: true
 
+  # ---------------------------------------------------------------- Login (Authentik)
+  authentik-db:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: authentik
+      POSTGRES_USER: authentik
+      POSTGRES_PASSWORD: ${AUTHENTIK_PG_PASSWORD:?Bitte AUTHENTIK_PG_PASSWORD in .env setzen}
+    volumes:
+      - authentik_db:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -d authentik -U authentik"]
+      interval: 5s
+      retries: 20
+
+  authentik-server: &authentik
+    image: ghcr.io/goauthentik/server:${AUTHENTIK_TAG:-2026.8.3}
+    command: server
+    restart: unless-stopped
+    depends_on:
+      authentik-db:
+        condition: service_healthy
+    shm_size: 512mb
+    environment:
+      AUTHENTIK_SECRET_KEY: ${AUTHENTIK_SECRET_KEY:?Bitte AUTHENTIK_SECRET_KEY in .env setzen}
+      AUTHENTIK_POSTGRESQL__HOST: authentik-db
+      AUTHENTIK_POSTGRESQL__NAME: authentik
+      AUTHENTIK_POSTGRESQL__USER: authentik
+      AUTHENTIK_POSTGRESQL__PASSWORD: ${AUTHENTIK_PG_PASSWORD}
+      # Nur beim allerersten Start: Passwort und E-Mail für den Admin "akadmin"
+      AUTHENTIK_BOOTSTRAP_PASSWORD: ${AUTHENTIK_BOOTSTRAP_PASSWORD:-}
+      AUTHENTIK_BOOTSTRAP_EMAIL: ${AUTHENTIK_BOOTSTRAP_EMAIL:-}
+      # Werte für den Blueprint authentik/wallet.yaml
+      WALLET_OIDC_CLIENT_ID: wallet-platform
+      WALLET_OIDC_CLIENT_SECRET: ${WALLET_OIDC_CLIENT_SECRET}
+      WALLET_PUBLIC_BASE_URL: https://${WALLET_DOMAIN}
+    volumes:
+      - ./authentik/wallet.yaml:/blueprints/custom/wallet.yaml:ro
+      - authentik_data:/data
+
+  authentik-worker:
+    <<: *authentik
+    command: worker
+
   caddy:
     image: caddy:2
     restart: unless-stopped
     depends_on:
       - api
+      - authentik-server
     ports:
       - "80:80"
       - "443:443"
     environment:
       WALLET_DOMAIN: ${WALLET_DOMAIN}
+      WALLET_AUTH_DOMAIN: ${WALLET_AUTH_DOMAIN}
     volumes:
       - ./Caddyfile:/etc/caddy/Caddyfile:ro
       - caddy_data:/data
@@ -78,5 +130,7 @@ services:
 volumes:
   pgdata:
   certstore:
+  authentik_db:
+  authentik_data:
   caddy_data:
   caddy_config:

@@ -1,0 +1,23 @@
+{% extends "base.html" %}
+{% set active = "passes" %}{% set title = "Pass ausgeben" %}
+{% block content %}
+<p class="small"><a href="/portal/passes">← Pässe</a></p>
+<h1>Pass ausgeben</h1>
+<p class="lead">Für einzelne Pässe von Hand; für viele Pässe die API nutzen.</p>
+{% if not templates %}
+<div class="card"><p>Noch keine freigegebene Vorlage. <a href="/portal/templates">Vorlage anlegen</a></p></div>
+{% else %}
+<div class="card">
+  <form method="get" class="row">
+    <label class="f">Vorlage<select name="template_id" onchange="this.form.submit()">{% for x in templates %}<option value="{{ x.id }}" {{ "selected" if t and x.id == t.id }}>{{ x.name }}</option>{% endfor %}</select></label>
+  </form>
+  <form method="post" action="/portal/passes">
+    <input type="hidden" name="csrf" value="{{ csrf }}"><input type="hidden" name="template_id" value="{{ t.id }}">
+    {% for f in fields %}<label class="f">{{ f }}<input type="text" name="f_{{ f }}" required></label>{% endfor %}
+    {% if not fields %}<p class="muted small">Diese Vorlage hat keine Platzhalter.</p>{% endif %}
+    <label class="f">Seriennummer (optional, sonst automatisch)<input type="text" name="serial_number" maxlength="100" pattern="[A-Za-z0-9._\-]+"></label>
+    <button class="primary">Pass ausgeben</button>
+  </form>
+</div>
+{% endif %}
+{% endblock %}

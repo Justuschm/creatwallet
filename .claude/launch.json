@@ -4,8 +4,20 @@
     {
       "name": "creatwallet-dev",
       "runtimeExecutable": "/bin/sh",
-      "runtimeArgs": ["-c", "set -a; . ./.env.dev; set +a; exec .venv/bin/creatwallet serve --port 8080"],
+      "runtimeArgs": [
+        "-c",
+        "set -a; . ./.env.dev; set +a; exec .venv/bin/creatwallet serve --port 8080"
+      ],
       "port": 8080
+    },
+    {
+      "name": "wallet-platform-dev",
+      "runtimeExecutable": "/bin/sh",
+      "runtimeArgs": [
+        "-c",
+        "set -a; . ./.env.platform-dev; set +a; exec .venv/bin/uvicorn app.api:create_app --factory --port 8000 --reload"
+      ],
+      "port": 8000
     }
   ]
 }

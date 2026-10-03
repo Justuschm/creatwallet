@@ -1,0 +1,49 @@
+{% extends "base.html" %}
+{% set active = "templates" %}{% set title = t.name %}
+{% block content %}
+<p class="small"><a href="/portal/templates">← Vorlagen</a></p>
+<h1>{{ t.name }}</h1>
+<p class="lead">
+  {% if t.approved_version %}<span class="badge approved">Version {{ t.approved_version.number }} freigegeben</span>{% else %}<span class="badge">noch nicht freigegeben</span>{% endif %}
+  {% if latest.status == "pending" %}<span class="badge pending">Version {{ latest.number }} in Prüfung</span>{% endif %}
+  {% if latest.status == "rejected" %}<span class="badge rejected">Version {{ latest.number }} abgelehnt</span>{% endif %}
+  · {{ passes }} Pässe
+</p>
+{% if latest.status == "rejected" and latest.review_note %}<div class="msg error">Begründung: {{ latest.review_note }}</div>{% endif %}
+
+<div class="card">
+  <div class="row">
+    {% if can("templates") %}<div class="shrink"><a class="btn primary" href="/portal/templates/{{ t.id }}/editor">Im Editor bearbeiten</a></div>{% endif %}
+    <form method="post" action="/portal/templates/{{ t.id }}/test-pass" class="shrink">
+      <input type="hidden" name="csrf" value="{{ csrf }}"><button>Test-Pass herunterladen</button></form>
+    {% if t.approved_version and can("passes") %}<div class="shrink"><a class="btn" href="/portal/passes/new?template_id={{ t.id }}">Pass ausgeben</a></div>{% endif %}
+  </div>
+  <p class="small muted">Der Test-Pass nutzt Beispielwerte und läuft nach 24 Stunden ab. Jede gespeicherte Änderung wird geprüft, bevor neue Pässe sie bekommen; danach erhalten auch alle bereits ausgegebenen Pässe das neue Design.</p>
+</div>
+
+<div class="card"><h2>Platzhalter</h2>
+  {% if placeholders %}
+  <p>Diese Felder müssen bei der Ausgabe gefüllt werden:</p>
+  <p>{% for p in placeholders %}<code>{{ p }}</code> {% endfor %}</p>
+  <p class="small muted">API: <code>{"template_id": "{{ t.id }}", "data": { {% for p in placeholders %}"{{ p }}": "…"{{ ", " if not loop.last }}{% endfor %} }}</code></p>
+  {% else %}<p class="muted">Keine Platzhalter – alle Pässe sehen gleich aus. Im Editor z. B. <code>{{ "{{name}}" }}</code> als Feldwert eintragen.</p>{% endif %}
+</div>
+
+{% set problems = issues | selectattr("level", "in", ["error", "warning"]) | list %}
+{% if problems %}
+<div class="card"><h2>Hinweise der Prüfung</h2>
+  <ul class="issues">{% for i in problems %}<li class="{{ i.level }}"><code>{{ i.path }}</code> {{ i.message }}</li>{% endfor %}</ul>
+</div>
+{% endif %}
+
+<div class="card"><h2>Versionen</h2>
+  <table>
+    <tr><th>Version</th><th>Status</th><th>Erstellt</th><th>Notiz</th></tr>
+    {% for v in t.versions | reverse %}
+    <tr><td>{{ v.number }}{% if t.approved_version and v.id == t.approved_version.id %} <span class="badge ok">aktiv</span>{% endif %}</td>
+        <td><span class="badge {{ v.status }}">{{ {"pending": "in Prüfung", "approved": "freigegeben", "rejected": "abgelehnt"}[v.status] }}</span></td>
+        <td class="small">{{ v.created_at | dt }}</td><td class="small">{{ v.review_note }}</td></tr>
+    {% endfor %}
+  </table>
+</div>
+{% endblock %}

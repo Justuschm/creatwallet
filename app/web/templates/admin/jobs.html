@@ -1,0 +1,17 @@
+{% extends "base.html" %}
+{% set area = "admin" %}{% set active = "jobs" %}{% set title = "Jobs" %}
+{% block content %}
+<h1>Jobs</h1>
+<p class="lead">Push an iPhones und Webhooks an Firmen.
+  {% for s, label in (("failed", "fehlgeschlagen"), ("pending", "wartend"), ("running", "laufend"), ("done", "erledigt")) %}<a href="?status={{ s }}" style="margin-left:12px;{{ 'font-weight:700' if s == status }}">{{ label }} ({{ counts.get(s, 0) }})</a>{% endfor %}</p>
+<div class="card">
+  {% if rows %}
+  <table>
+    <tr><th>Art</th><th>Versuche</th><th>Nächster Lauf</th><th>Fehler</th><th></th></tr>
+    {% for j in rows %}<tr><td><code>{{ j.kind }}</code></td><td>{{ j.attempts }}</td><td class="small">{{ j.run_after | dt }}</td>
+      <td class="small">{{ j.last_error[:200] }}</td>
+      <td>{% if j.status in ("failed", "pending") %}<form class="inline" method="post" action="/admin/jobs/{{ j.id }}/retry"><input type="hidden" name="csrf" value="{{ csrf }}"><button class="small">Jetzt erneut</button></form>{% endif %}</td></tr>{% endfor %}
+  </table>
+  {% else %}<p class="muted">Keine Jobs mit diesem Status.</p>{% endif %}
+</div>
+{% endblock %}

@@ -36,6 +36,9 @@ def create_app(settings=None, engine=None, signers=None):
 
     @app.exception_handler(ServiceError)
     def service_error(request: Request, exc: ServiceError):
+        if request.url.path.startswith(("/portal", "/admin")) and "json" not in request.headers.get("accept", ""):
+            from ..web import html_error
+            return html_error(request, exc)
         headers = {"WWW-Authenticate": "Bearer"} if exc.status == 401 else None
         return JSONResponse({"error": exc.message, "issues": issues_json(exc.issues)}, status_code=exc.status,
                             headers=headers)
@@ -60,4 +63,7 @@ def create_app(settings=None, engine=None, signers=None):
     app.include_router(routes.router)
     app.include_router(public.router)
     app.include_router(apple.router)
+
+    from .. import web
+    web.install(app)
     return app

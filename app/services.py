@@ -13,7 +13,11 @@ from creatwallet.build import BuildError, build_pkpass
 from . import jobs, placeholders
 from .certs import CertStoreError
 from .models import Pass, Template, TemplateFile, TemplateVersion, Tenant, utcnow
-from .security import Vault, random_token
+from datetime import timedelta
+
+from . import webhooks
+from .models import ApiKey, WebhookEndpoint
+from .security import Vault, generate_api_key, random_token
 
 # Diese Felder setzt die Plattform selbst; in Vorlagen werden sie ignoriert.
 PLATFORM_KEYS = ("formatVersion", "serialNumber", "passTypeIdentifier", "teamIdentifier",
@@ -38,7 +42,7 @@ def issues_json(issues):
 
 # ---------------------------------------------------------------- Vorlagen
 
-def _clean_template_input(pass_json, images):
+def clean_template_input(pass_json, images):
     if not isinstance(pass_json, dict):
         raise ServiceError(422, "pass muss ein JSON-Objekt sein.")
     cleaned = {k: val for k, val in copy.deepcopy(pass_json).items() if k not in PLATFORM_KEYS}
@@ -84,7 +88,7 @@ def _lookup(obj, path):
 def create_template(session, tenant, name, pass_json, images, settings):
     if not name or len(name) > 200:
         raise ServiceError(422, "name fehlt oder ist zu lang (max. 200 Zeichen).")
-    cleaned = _clean_template_input(pass_json, images or {})
+    cleaned = clean_template_input(pass_json, images or {})
     template = Template(tenant_id=tenant.id, name=name)
     session.add(template)
     version = _add_version(session, template, cleaned, images or {}, settings)
@@ -97,7 +101,7 @@ def update_template(session, template, name, pass_json, images, settings):
     if pass_json is None and images is None:
         return template, None
     base = template.latest_version
-    cleaned = _clean_template_input(pass_json if pass_json is not None else base.pass_json, images)
+    cleaned = clean_template_input(pass_json if pass_json is not None else base.pass_json, images)
     files = images if images is not None else base.file_map()
     version = _add_version(session, template, cleaned, files, settings)
     return template, version
@@ -172,6 +176,8 @@ def platform_fields(pass_data, tenant, serial, auth_token, settings, voided):
 
 
 def _require_issuable(tenant, template):
+    if tenant.status == "pending":
+        raise ServiceError(403, "Das Konto wartet noch auf Freigabe.")
     if tenant.status != "active":
         raise ServiceError(403, "Das Konto ist gesperrt.")
     if tenant.certificate is None:
@@ -303,6 +309,62 @@ def tenant_by_id(session, tenant_id) -> Tenant:
     if t is None:
         raise ServiceError(404, "Firma nicht gefunden.")
     return t
+
+
+def build_test_pass(tenant, version, data, signers):
+    """Test-Pass aus einer (auch noch nicht freigegebenen) Vorlagen-Version, läuft nach 24 h ab."""
+    if tenant.status == "suspended" or tenant.certificate is None:
+        raise ServiceError(409, "Konto gesperrt oder noch kein Zertifikat hinterlegt.")
+    names = placeholders.find(version.pass_json)
+    data = {**placeholders.sample_data(names), **(data or {})}
+    problems = placeholders.check(names, data)
+    if problems:
+        raise ServiceError(422, " ".join(problems))
+    rendered = placeholders.render(version.pass_json, data)
+    pass_data = platform_fields(rendered, tenant, "test-" + random_token(8), "x" * 16, None, False)
+    pass_data["expirationDate"] = (utcnow() + timedelta(hours=24)).isoformat(timespec="seconds")
+    try:
+        signer = signers.get(tenant.certificate)
+    except CertStoreError as exc:
+        raise ServiceError(503, f"Signieren nicht möglich: {exc}") from exc
+    try:
+        pkpass, _ = build_pkpass(pass_data, version.file_map(), signer, strict=True)
+    except BuildError as exc:
+        raise ServiceError(422, "Die Vorlage ergibt mit diesen Werten keinen gültigen Pass.", exc.issues) from exc
+    return pkpass
+
+
+def create_api_key(session, tenant, name=""):
+    """Rückgabe (Datensatz, vollständiger Schlüssel) - der Schlüssel wird nur einmal angezeigt."""
+    key, prefix, secret_hash = generate_api_key()
+    api_key = ApiKey(tenant_id=tenant.id, name=name[:100], prefix=prefix, secret_hash=secret_hash)
+    session.add(api_key)
+    session.flush()
+    return api_key, key
+
+
+def create_webhook(session, tenant, url, events, settings, vault):
+    """Rückgabe (Endpunkt, Geheimnis) - das Geheimnis wird nur einmal angezeigt."""
+    unknown = [e for e in events if e not in jobs.EVENTS]
+    if not events or unknown:
+        raise ServiceError(422, "events: mindestens eines von " + ", ".join(jobs.EVENTS))
+    try:
+        webhooks.check_url(url, settings.allow_insecure_webhooks)
+    except webhooks.UnsafeUrl as exc:
+        raise ServiceError(422, str(exc)) from exc
+    if session.query(WebhookEndpoint).filter_by(tenant_id=tenant.id).count() >= 10:
+        raise ServiceError(409, "Höchstens 10 Webhooks pro Konto.")
+    secret = "whsec_" + random_token(24)
+    ep = WebhookEndpoint(tenant_id=tenant.id, url=url, events=sorted(set(events)), secret_enc=vault.encrypt(secret))
+    session.add(ep)
+    session.flush()
+    return ep, secret
+
+
+def send_test_webhook(session, ep):
+    jobs.enqueue(session, jobs.WEBHOOK, {"endpoint_id": ep.id, "body": {
+        "id": "evt_test_" + random_token(8), "type": "webhook.test",
+        "created_at": utcnow().isoformat(timespec="seconds"), "data": {}}})
 
 
 __all__ = ["ServiceError", "Vault"]

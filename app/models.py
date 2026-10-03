@@ -29,8 +29,12 @@ class Tenant(Base):
     name: Mapped[str] = mapped_column(String(200))
     # Erscheint im Pass als organizationName, wenn die Vorlage keinen setzt.
     organization_name: Mapped[str] = mapped_column(String(200))
-    status: Mapped[str] = mapped_column(String(20), default="active")  # active | suspended
+    status: Mapped[str] = mapped_column(String(20), default="active")  # pending | active | suspended
     plan: Mapped[str] = mapped_column(String(20), default="free")
+    address: Mapped[str] = mapped_column(Text, default="")
+    vat_id: Mapped[str] = mapped_column(String(40), default="")
+    contact_email: Mapped[str] = mapped_column(String(200), default="")
+    review_note: Mapped[str] = mapped_column(Text, default="")
     certificate_id: Mapped[str | None] = mapped_column(ForeignKey("certificates.id"), nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
 
@@ -202,3 +206,53 @@ class Job(Base):
     last_error: Mapped[str] = mapped_column(Text, default="")
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
     updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
+
+
+# ---------------------------------------------------------------- Phase 2: Portal und Admin
+
+class User(Base):
+    """Person, die sich über Authentik anmeldet. Admins erkennt die App an der Authentik-Gruppe."""
+
+    __tablename__ = "users"
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=new_id)
+    oidc_sub: Mapped[str] = mapped_column(String(200), unique=True)
+    email: Mapped[str] = mapped_column(String(200), default="")
+    name: Mapped[str] = mapped_column(String(200), default="")
+    tenant_id: Mapped[str | None] = mapped_column(ForeignKey("tenants.id", ondelete="SET NULL"), nullable=True,
+                                                  index=True)
+    role: Mapped[str] = mapped_column(String(20), default="viewer")  # owner|admin|designer|issuer|viewer
+    is_admin: Mapped[bool] = mapped_column(default=False)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
+    last_login_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+
+    tenant: Mapped[Tenant | None] = relationship()
+
+
+class Invitation(Base):
+    __tablename__ = "invitations"
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=new_id)
+    tenant_id: Mapped[str] = mapped_column(ForeignKey("tenants.id", ondelete="CASCADE"), index=True)
+    email: Mapped[str] = mapped_column(String(200))
+    role: Mapped[str] = mapped_column(String(20))
+    token: Mapped[str] = mapped_column(String(64), unique=True)
+    created_by: Mapped[str] = mapped_column(String(200), default="")
+    expires_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+    accepted_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+
+    tenant: Mapped[Tenant] = relationship()
+
+
+class AuditLog(Base):
+    """Wer hat wann was getan - für Admin-Aktionen und wichtige Änderungen im Portal."""
+
+    __tablename__ = "audit_log"
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=new_id)
+    actor: Mapped[str] = mapped_column(String(200))
+    action: Mapped[str] = mapped_column(String(80))
+    tenant_id: Mapped[str | None] = mapped_column(String(36), nullable=True, index=True)
+    object_id: Mapped[str] = mapped_column(String(64), default="")
+    details: Mapped[dict] = mapped_column(JSONType, default=dict)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow, index=True)

@@ -429,7 +429,12 @@ $("guide").addEventListener("click", (e) => {
 });
 
 
+// Plattform-Modus: Editor im Kunden-Portal (window.CW_PLATFORM vom Server gesetzt)
+const P = window.CW_PLATFORM || null;
+function platformHeaders() { return P ? { "X-CSRF-Token": P.csrf, "Content-Type": "application/json" } : {}; }
+
 async function api(path, opts = {}) {
+  if (P) opts.headers = { ...platformHeaders(), ...(opts.headers || {}) };
   const r = await fetch(path, opts);
   const ct = r.headers.get("content-type") || "";
   if (ct.includes("json")) { const j = await r.json(); if (!r.ok) throw Object.assign(new Error(j.error || r.statusText), { data: j }); return j; }
@@ -437,7 +442,51 @@ async function api(path, opts = {}) {
   return r;
 }
 
+async function initPlatform() {
+  document.title = P.name + " – Editor";
+  for (const id of ["template", "loadTemplate", "newSerial", "openBtn"]) { const el = $(id); (el.closest("label") || el).style.display = "none"; }
+  $("build").textContent = "Test-Pass";
+  $("build").classList.remove("primary");
+  $("build").title = "Pass mit Beispielwerten fürs eigene iPhone (läuft nach 24 h ab)";
+  const h1 = document.querySelector("header h1");
+  h1.innerHTML = `<a href="${esc(P.back)}" style="color:inherit;text-decoration:none">← ${esc(P.name)}</a>`;
+  if (P.canSave) {
+    const save = document.createElement("button"); save.className = "primary"; save.id = "save"; save.textContent = "Speichern";
+    save.onclick = savePlatform; $("build").after(save);
+  }
+  const hint = document.createElement("p"); hint.className = "muted";
+  hint.innerHTML = "Platzhalter wie <code>{{name}}</code> in Feldwerte schreiben – sie werden bei der Ausgabe gefüllt.";
+  $("content").before(hint);
+  for (const name of Object.keys(SNIPPETS)) {
+    const b = document.createElement("button"); b.textContent = name;
+    b.onclick = () => { if (!state.pass) return; SNIPPETS[name](state.pass); setPass(state.pass); };
+    $("snippets").appendChild(b);
+  }
+  const d = await api(P.base + "/data");
+  state.images = d.images; state.previewStyle = null;
+  setPass(d.pass); renderImages();
+  setVersionBadge(d.version, d.status);
+  setTimeout(() => { state.dirty = false; }, 400);
+  window.addEventListener("beforeunload", (e) => { if (state.dirty) { e.preventDefault(); e.returnValue = ""; } });
+}
+
+function setVersionBadge(version, status) {
+  const label = { pending: "in Prüfung", approved: "freigegeben", rejected: "abgelehnt" }[status] || status;
+  $("signStatus").textContent = `Version ${version} · ${label}`;
+  $("signStatus").className = "badge " + (status === "rejected" ? "bad" : "ok");
+}
+
+async function savePlatform() {
+  try {
+    const r = await api(P.base + "/save", { method: "POST", body: JSON.stringify({ pass: state.pass, images: state.images }) });
+    state.dirty = false;
+    setVersionBadge(r.version, r.status);
+    toast(r.status === "approved" ? `Gespeichert als Version ${r.version}.` : `Gespeichert als Version ${r.version} – wird vor der Nutzung geprüft.`);
+  } catch (e) { toast("Speichern fehlgeschlagen: " + e.message); }
+}
+
 async function init() {
+  if (P) return initPlatform();
   state.status = await api("/api/status");
   const s = $("signStatus");
   if (state.status.canSign) { s.textContent = "Zertifikat: " + (state.status.passTypeIdentifier || "geladen"); s.className = "badge ok"; }
@@ -468,7 +517,8 @@ function setPass(p, fromEditor = false) {
 
 function renderBasics() {
   const p = state.pass || {};
-  $("basics").innerHTML = BASICS.map(([k, label, type]) => type === "color"
+  const platformKeys = ["passTypeIdentifier", "teamIdentifier", "serialNumber"];  // setzt im Portal die Plattform
+  $("basics").innerHTML = BASICS.filter(([k]) => !(window.CW_PLATFORM && platformKeys.includes(k))).map(([k, label, type]) => type === "color"
     ? `<label class="f">${label}<span class="colorrow"><input type="color" data-k="${k}" value="${rgbToHex(p[k])}"><input type="text" data-k="${k}" value="${esc(p[k])}" placeholder="rgb(0, 0, 0)"></span></label>`
     : `<label class="f">${label}<input type="text" data-k="${k}" value="${esc(p[k])}"></label>`).join("");
   $("basics").querySelectorAll("input").forEach(inp => inp.addEventListener("input", () => {
@@ -782,9 +832,9 @@ function renderPreview() {
   }
 }
 
-function scheduleValidate() { clearTimeout(validateTimer); validateTimer = setTimeout(runValidate, 300); }
+function scheduleValidate() { state.dirty = true; clearTimeout(validateTimer); validateTimer = setTimeout(runValidate, 300); }
 async function runValidate() {
-  try { const r = await api("/api/validate", { method: "POST", body: JSON.stringify({ pass: state.pass, images: state.images }) }); showIssues(r.issues); }
+  try { const r = await api(P ? P.base + "/validate" : "/api/validate", { method: "POST", body: JSON.stringify({ pass: state.pass, images: state.images }) }); showIssues(r.issues); }
   catch (e) { showIssues([{ level: "error", path: "", message: e.message }]); }
 }
 function showIssues(issues) {
@@ -810,7 +860,8 @@ $("openPkpass").addEventListener("change", async (e) => {
 
 $("build").onclick = async () => {
   try {
-    const r = await fetch("/api/build", { method: "POST", body: JSON.stringify({ pass: state.pass, images: state.images, newSerial: $("newSerial").checked }) });
+    const r = await fetch(P ? P.base + "/test-pass" : "/api/build", { method: "POST", headers: platformHeaders(),
+      body: JSON.stringify({ pass: state.pass, images: state.images, newSerial: $("newSerial").checked }) });
     if (!r.ok) { const j = await r.json(); if (j.issues) showIssues(j.issues); throw new Error(j.error); }
     const blob = await r.blob();
     const name = /filename="([^"]+)"/.exec(r.headers.get("content-disposition") || "")?.[1] || "pass.pkpass";

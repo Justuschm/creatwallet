@@ -1,0 +1,19 @@
+{% extends "base.html" %}
+{% set area = "admin" %}{% set active = "tenants" %}{% set title = "Firmen" %}
+{% block content %}
+<h1>Firmen</h1>
+<p class="lead">{% for s, label in (("", "alle"), ("pending", "in Prüfung"), ("active", "aktiv"), ("suspended", "gesperrt")) %}<a href="?status={{ s }}" style="margin-right:12px;{{ 'font-weight:700' if s == status }}">{{ label }}</a>{% endfor %}</p>
+<div class="card">
+  {% if tenants %}
+  <table>
+    <tr><th>Firma</th><th>Status</th><th>Tarif</th><th>Zertifikat</th><th>Aktive Pässe</th><th>Seit</th></tr>
+    {% for t in tenants %}
+    <tr><td><a href="/admin/tenants/{{ t.id }}">{{ t.name }}</a><br><span class="small muted">{{ t.contact_email }}</span></td>
+      <td><span class="badge {{ t.status }}">{{ t.status }}</span></td><td>{{ t.plan }}</td>
+      <td class="small">{{ t.certificate.pass_type_identifier if t.certificate else "–" }}</td>
+      <td>{{ counts.get(t.id, 0) }}</td><td class="small">{{ t.created_at | d }}</td></tr>
+    {% endfor %}
+  </table>
+  {% else %}<p class="muted">Keine Firmen.</p>{% endif %}
+</div>
+{% endblock %}

@@ -1,0 +1,143 @@
+# Authentik-Blueprint: richtet beim Start alles für die Wallet-Pass-Plattform ein.
+# Werte kommen aus Umgebungsvariablen des Authentik-Containers (siehe docker-compose.yml).
+version: 1
+metadata:
+  name: Wallet-Pass-Plattform
+  labels:
+    blueprints.goauthentik.io/description: "OIDC-Anmeldung, Admin-Gruppe, Registrierung, Zwei-Faktor-Pflicht"
+entries:
+  # Mitglieder dieser Gruppe sehen den Admin-Bereich der Plattform.
+  - model: authentik_core.group
+    id: wallet-admins
+    identifiers:
+      name: wallet-admins
+    attrs:
+      name: wallet-admins
+
+  - model: authentik_core.user
+    identifiers:
+      username: akadmin
+    attrs:
+      groups:
+        - !KeyOf wallet-admins
+
+  - model: authentik_providers_oauth2.oauth2provider
+    id: wallet-provider
+    identifiers:
+      name: wallet-platform
+    attrs:
+      name: wallet-platform
+      authorization_flow: !Find [authentik_flows.flow, [slug, default-provider-authorization-implicit-consent]]
+      # Abmelden in der Plattform beendet auch die Authentik-Sitzung (sonst meldet der nächste Aufruf wieder an)
+      invalidation_flow: !Find [authentik_flows.flow, [slug, default-invalidation-flow]]
+      client_type: confidential
+      # Seit Authentik 2026: erlaubte Verfahren ausdrücklich nennen (Authorization Code mit PKCE)
+      grant_types: [authorization_code, refresh_token]
+      client_id: !Env WALLET_OIDC_CLIENT_ID
+      client_secret: !Env WALLET_OIDC_CLIENT_SECRET
+      redirect_uris:
+        - url: !Format ["%s/auth/callback", !Env WALLET_PUBLIC_BASE_URL]
+          matching_mode: strict
+      property_mappings:
+        - !Find [authentik_providers_oauth2.scopemapping, [scope_name, openid]]
+        - !Find [authentik_providers_oauth2.scopemapping, [scope_name, email]]
+        - !Find [authentik_providers_oauth2.scopemapping, [scope_name, profile]]
+      signing_key: !Find [authentik_crypto.certificatekeypair, [name, authentik Self-signed Certificate]]
+      include_claims_in_id_token: true
+      sub_mode: hashed_user_id
+
+  - model: authentik_core.application
+    identifiers:
+      slug: wallet
+    attrs:
+      name: Wallet-Pass-Plattform
+      slug: wallet
+      provider: !KeyOf wallet-provider
+      meta_launch_url: !Format ["%s/portal", !Env WALLET_PUBLIC_BASE_URL]
+
+  # Selbstregistrierung: eigener Registrierungs-Ablauf (nach Authentiks Beispiel "Enrollment (2 Stage)")
+  # und ein Link "Registrieren" auf der Anmeldeseite.
+  - model: authentik_flows.flow
+    id: wallet-enrollment
+    identifiers:
+      slug: wallet-enrollment
+    attrs:
+      name: Registrierung Wallet-Pass-Plattform
+      title: Konto anlegen
+      designation: enrollment
+      authentication: require_unauthenticated
+  - model: authentik_stages_prompt.prompt
+    id: wallet-field-username
+    identifiers:
+      name: wallet-enrollment-field-username
+    attrs: {field_key: username, label: Benutzername, type: username, required: true, placeholder: Benutzername,
+            placeholder_expression: false, order: 0}
+  - model: authentik_stages_prompt.prompt
+    id: wallet-field-password
+    identifiers:
+      name: wallet-enrollment-field-password
+    attrs: {field_key: password, label: Passwort, type: password, required: true, placeholder: Passwort,
+            placeholder_expression: false, order: 1}
+  - model: authentik_stages_prompt.prompt
+    id: wallet-field-password-repeat
+    identifiers:
+      name: wallet-enrollment-field-password-repeat
+    attrs: {field_key: password_repeat, label: Passwort wiederholen, type: password, required: true,
+            placeholder: Passwort wiederholen, placeholder_expression: false, order: 2}
+  - model: authentik_stages_prompt.prompt
+    id: wallet-field-name
+    identifiers:
+      name: wallet-enrollment-field-name
+    attrs: {field_key: name, label: Name, type: text, required: true, placeholder: Vor- und Nachname,
+            placeholder_expression: false, order: 0}
+  - model: authentik_stages_prompt.prompt
+    id: wallet-field-email
+    identifiers:
+      name: wallet-enrollment-field-email
+    attrs: {field_key: email, label: Geschäftliche E-Mail, type: email, required: true, placeholder: name@firma.de,
+            placeholder_expression: false, order: 1}
+  - model: authentik_stages_prompt.promptstage
+    id: wallet-enrollment-prompt-first
+    identifiers:
+      name: wallet-enrollment-prompt-first
+    attrs:
+      fields: [!KeyOf wallet-field-username, !KeyOf wallet-field-password, !KeyOf wallet-field-password-repeat]
+  - model: authentik_stages_prompt.promptstage
+    id: wallet-enrollment-prompt-second
+    identifiers:
+      name: wallet-enrollment-prompt-second
+    attrs:
+      fields: [!KeyOf wallet-field-name, !KeyOf wallet-field-email]
+  - model: authentik_stages_user_write.userwritestage
+    id: wallet-enrollment-user-write
+    identifiers:
+      name: wallet-enrollment-user-write
+    attrs:
+      user_creation_mode: always_create
+  - model: authentik_stages_user_login.userloginstage
+    id: wallet-enrollment-user-login
+    identifiers:
+      name: wallet-enrollment-user-login
+  - model: authentik_flows.flowstagebinding
+    identifiers: {target: !KeyOf wallet-enrollment, stage: !KeyOf wallet-enrollment-prompt-first, order: 10}
+  - model: authentik_flows.flowstagebinding
+    identifiers: {target: !KeyOf wallet-enrollment, stage: !KeyOf wallet-enrollment-prompt-second, order: 11}
+  - model: authentik_flows.flowstagebinding
+    identifiers: {target: !KeyOf wallet-enrollment, stage: !KeyOf wallet-enrollment-user-write, order: 20}
+  - model: authentik_flows.flowstagebinding
+    identifiers: {target: !KeyOf wallet-enrollment, stage: !KeyOf wallet-enrollment-user-login, order: 100}
+  - model: authentik_stages_identification.identificationstage
+    identifiers:
+      name: default-authentication-identification
+    attrs:
+      user_fields: [email, username]
+      enrollment_flow: !KeyOf wallet-enrollment
+
+  # Zwei-Faktor-Pflicht: wer noch keinen zweiten Faktor hat, richtet beim Login eine Authenticator-App ein.
+  - model: authentik_stages_authenticator_validate.authenticatorvalidatestage
+    identifiers:
+      name: default-authentication-mfa-validation
+    attrs:
+      not_configured_action: configure
+      configuration_stages:
+        - !Find [authentik_stages_authenticator_totp.authenticatortotpstage, [name, default-authenticator-totp-setup]]

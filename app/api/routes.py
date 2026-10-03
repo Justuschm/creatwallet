@@ -2,18 +2,13 @@
 
 import base64
 import binascii
-from datetime import timedelta
-
 from fastapi import APIRouter, Depends, Header, Query, Request, Response
 from sqlalchemy.orm import Session
 
-from creatwallet.build import BuildError, build_pkpass
 from creatwallet.templates import TEMPLATES, new_pass, placeholder_images
 
 from .. import placeholders, services
-from .. import jobs, webhooks
-from ..models import Pass, Template, Tenant, WebhookEndpoint, utcnow
-from ..security import random_token
+from ..models import Pass, Template, Tenant, WebhookEndpoint
 from ..services import ServiceError, issues_json
 from .deps import ctx, get_session, get_tenant
 from .schemas import (AccountOut, PassCreate, PassList, PassOut, PassUpdate, TemplateCreate, TemplateOut,
@@ -124,24 +119,9 @@ def update_template(template_id: str, body: TemplateUpdate, request: Request,
                          "Der Test-Pass läuft nach 24 Stunden ab.")
 def test_pass(template_id: str, request: Request, body: TestPassRequest | None = None,
               tenant: Tenant = Depends(get_tenant), session: Session = Depends(get_session)):
-    settings, signers, _ = ctx(request)
+    _, signers, _ = ctx(request)
     t = services.get_template(session, tenant, template_id)
-    if tenant.status != "active" or tenant.certificate is None:
-        raise ServiceError(409, "Konto gesperrt oder noch kein Zertifikat hinterlegt.")
-    version = t.latest_version
-    names = placeholders.find(version.pass_json)
-    data = {**placeholders.sample_data(names), **((body.data if body else None) or {})}
-    problems = placeholders.check(names, data)
-    if problems:
-        raise ServiceError(422, " ".join(problems))
-    rendered = placeholders.render(version.pass_json, data)
-    pass_data = services.platform_fields(rendered, tenant, "test-" + random_token(8), "x" * 16,
-                                          None, False)
-    pass_data["expirationDate"] = (utcnow() + timedelta(hours=24)).isoformat(timespec="seconds")
-    try:
-        pkpass, _ = build_pkpass(pass_data, version.file_map(), signers.get(tenant.certificate), strict=True)
-    except BuildError as exc:
-        raise ServiceError(422, "Die Vorlage ergibt mit diesen Werten keinen gültigen Pass.", exc.issues) from exc
+    pkpass = services.build_test_pass(tenant, t.latest_version, body.data if body else None, signers)
     return Response(pkpass, media_type=PKPASS, headers={"Content-Disposition": 'attachment; filename="test.pkpass"'})
 
 
@@ -231,19 +211,7 @@ def list_webhooks(tenant: Tenant = Depends(get_tenant), session: Session = Depen
 def create_webhook(body: WebhookCreate, request: Request, tenant: Tenant = Depends(get_tenant),
                    session: Session = Depends(get_session)):
     settings, _, vault = ctx(request)
-    unknown = [e for e in body.events if e not in jobs.EVENTS]
-    if not body.events or unknown:
-        raise ServiceError(422, "events: mindestens eines von " + ", ".join(jobs.EVENTS))
-    try:
-        webhooks.check_url(body.url, settings.allow_insecure_webhooks)
-    except webhooks.UnsafeUrl as exc:
-        raise ServiceError(422, str(exc)) from exc
-    if session.query(WebhookEndpoint).filter_by(tenant_id=tenant.id).count() >= 10:
-        raise ServiceError(409, "Höchstens 10 Webhooks pro Konto.")
-    secret = "whsec_" + random_token(24)
-    ep = WebhookEndpoint(tenant_id=tenant.id, url=body.url, events=sorted(set(body.events)),
-                         secret_enc=vault.encrypt(secret))
-    session.add(ep)
+    ep, secret = services.create_webhook(session, tenant, body.url, body.events, settings, vault)
     session.commit()
     return webhook_out(ep, secret)
 
@@ -264,8 +232,6 @@ def test_webhook(webhook_id: str, tenant: Tenant = Depends(get_tenant), session:
     ep = session.get(WebhookEndpoint, webhook_id)
     if ep is None or ep.tenant_id != tenant.id:
         raise ServiceError(404, "Webhook nicht gefunden.")
-    jobs.enqueue(session, jobs.WEBHOOK, {"endpoint_id": ep.id, "body": {
-        "id": "evt_test_" + random_token(8), "type": "webhook.test",
-        "created_at": utcnow().isoformat(timespec="seconds"), "data": {}}})
+    services.send_test_webhook(session, ep)
     session.commit()
     return {"queued": True}

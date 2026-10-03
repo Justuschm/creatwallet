@@ -1,0 +1,22 @@
+{% extends "base.html" %}
+{% set active = "settings" %}{% set title = "Einstellungen" %}
+{% block content %}
+<h1>Einstellungen</h1>
+<p class="lead">Status: <span class="badge {{ tenant.status }}">{{ {"active": "aktiv", "pending": "in Prüfung", "suspended": "gesperrt"}[tenant.status] }}</span>
+  · Tarif {{ tenant.plan }}{% if tenant.certificate %} · Zertifikat <code>{{ tenant.certificate.pass_type_identifier }}</code>{% endif %}</p>
+<div class="card">
+  <form method="post" action="/portal/settings">
+    <input type="hidden" name="csrf" value="{{ csrf }}">
+    <div class="row">
+      <label class="f">Firmenname<input type="text" name="name" value="{{ tenant.name }}" required maxlength="200"></label>
+      <label class="f">Name im Pass<input type="text" name="organization_name" value="{{ tenant.organization_name }}" required maxlength="200"></label>
+    </div>
+    <label class="f">Anschrift<textarea name="address" maxlength="1000">{{ tenant.address }}</textarea></label>
+    <div class="row">
+      <label class="f">USt-ID<input type="text" name="vat_id" value="{{ tenant.vat_id }}" maxlength="40"></label>
+      <label class="f">Kontakt-E-Mail<input type="email" name="contact_email" value="{{ tenant.contact_email }}" maxlength="200"></label>
+    </div>
+    {% if can("settings") %}<button class="primary">Speichern</button>{% endif %}
+  </form>
+</div>
+{% endblock %}

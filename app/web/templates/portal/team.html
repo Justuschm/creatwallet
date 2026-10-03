@@ -1,0 +1,38 @@
+{% extends "base.html" %}
+{% set active = "team" %}{% set title = "Team" %}
+{% block content %}
+<h1>Team</h1>
+<p class="lead">Wer in deiner Firma das Portal nutzt und was er darf.</p>
+{% if new_invite %}<div class="msg warn">Einladungslink (7 Tage gültig) – an die Person schicken:<div class="secret">{{ new_invite }}</div></div>{% endif %}
+<div class="card">
+  <table>
+    <tr><th>Person</th><th>Rolle</th><th>Zuletzt angemeldet</th><th></th></tr>
+    {% for m in members %}
+    <tr><td>{{ m.name or m.email }}<br><span class="small muted">{{ m.email }}</span></td>
+      <td>{% if can("team") and m.id != user.id %}
+        <form class="inline" method="post" action="/portal/team/{{ m.id }}/role"><input type="hidden" name="csrf" value="{{ csrf }}">
+          <select name="role" onchange="this.form.submit()">{% for key, label in ROLES.items() %}<option value="{{ key }}" {{ "selected" if key == m.role }}>{{ label }}</option>{% endfor %}</select></form>
+        {% else %}{{ ROLES[m.role] }}{% endif %}</td>
+      <td class="small">{{ m.last_login_at | dt }}</td>
+      <td>{% if can("team") %}<form class="inline" method="post" action="/portal/team/{{ m.id }}/remove" onsubmit="return confirm('Zugang entfernen?')"><input type="hidden" name="csrf" value="{{ csrf }}"><button class="small danger">Entfernen</button></form>{% endif %}</td></tr>
+    {% endfor %}
+  </table>
+</div>
+{% if invites %}
+<div class="card"><h2>Offene Einladungen</h2>
+  <table>{% for i in invites %}<tr><td>{{ i.email }}</td><td>{{ ROLES[i.role] }}</td><td class="small">bis {{ i.expires_at | d }}</td>
+    <td>{% if can("team") %}<form class="inline" method="post" action="/portal/invitations/{{ i.id }}/revoke"><input type="hidden" name="csrf" value="{{ csrf }}"><button class="small">Zurückziehen</button></form>{% endif %}</td></tr>{% endfor %}</table>
+</div>
+{% endif %}
+{% if can("team") %}
+<div class="card"><h2>Person einladen</h2>
+  <form method="post" action="/portal/team/invite" class="row">
+    <input type="hidden" name="csrf" value="{{ csrf }}">
+    <label class="f">E-Mail<input type="email" name="email" required></label>
+    <label class="f">Rolle<select name="role">{% for key, label in ROLES.items() %}{% if key != "owner" or user.role == "owner" %}<option value="{{ key }}" {{ "selected" if key == "designer" }}>{{ label }}</option>{% endif %}{% endfor %}</select></label>
+    <div class="shrink" style="margin-bottom:12px"><button class="primary">Einladungslink erzeugen</button></div>
+  </form>
+  <p class="small muted">Inhaber und Admin: alles · Gestalter: Vorlagen · Ausgabe: Pässe ausgeben und ändern · Nur lesen: ansehen.</p>
+</div>
+{% endif %}
+{% endblock %}

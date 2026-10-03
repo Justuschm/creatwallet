@@ -1,0 +1,19 @@
+{% extends "base.html" %}
+{% set area = "admin" %}{% set active = "cockpit" %}{% set title = "Cockpit" %}
+{% block content %}
+<h1>Cockpit</h1>
+<p class="lead">Zustand der Plattform auf einen Blick.</p>
+<div class="grid">
+  <div class="kpi"><div class="n">{{ by_status.get("active", 0) }}</div><div class="l">aktive Firmen</div></div>
+  <div class="kpi"><div class="n">{{ by_status.get("pending", 0) }}</div><div class="l"><a href="/admin/reviews">Firmen in Prüfung</a></div></div>
+  <div class="kpi"><div class="n">{{ stats.pending_templates }}</div><div class="l"><a href="/admin/reviews">Vorlagen in Prüfung</a></div></div>
+  <div class="kpi"><div class="n">{{ stats.passes }}</div><div class="l">aktive Pässe</div></div>
+  <div class="kpi"><div class="n">{{ stats.devices }}</div><div class="l">Installationen</div></div>
+  <div class="kpi"><div class="n">{{ jobs.get("pending", 0) }} / {{ jobs.get("failed", 0) }}</div><div class="l"><a href="/admin/jobs">Jobs wartend / fehlgeschlagen</a></div></div>
+</div>
+<div class="card"><h2>Zertifikate, die in 60 Tagen ablaufen</h2>
+  {% if expiring %}<table>{% for c in expiring %}<tr><td><code>{{ c.pass_type_identifier }}</code></td><td>{{ c.expires_at | d }}</td></tr>{% endfor %}</table>
+  {% else %}<p class="muted">Keine.</p>{% endif %}
+</div>
+{% if by_status.get("suspended") %}<p class="small muted">{{ by_status.get("suspended") }} Firma/Firmen gesperrt.</p>{% endif %}
+{% endblock %}

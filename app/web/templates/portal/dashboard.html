@@ -1,0 +1,34 @@
+{% extends "base.html" %}
+{% set active = "dashboard" %}{% set title = "Übersicht" %}
+{% block content %}
+<h1>Übersicht</h1>
+<p class="lead">{{ tenant.name }} · Tarif {{ tenant.plan }}</p>
+
+{% if tenant.status == "pending" %}
+<div class="msg warn">Dein Konto wird gerade geprüft. Vorlagen kannst du schon gestalten; Pässe ausgeben geht nach der Freigabe.</div>
+{% elif tenant.status == "suspended" %}
+<div class="msg error">Dein Konto ist gesperrt{% if tenant.review_note %}: {{ tenant.review_note }}{% endif %}. Bereits ausgegebene Pässe bleiben gültig.</div>
+{% endif %}
+{% if not tenant.certificate %}<div class="msg warn">Für dein Konto ist noch kein Zertifikat hinterlegt – das erledigen wir bei der Freigabe.</div>{% endif %}
+
+<div class="grid">
+  <div class="kpi"><div class="n">{{ stats.active }}</div><div class="l">aktive Pässe</div></div>
+  <div class="kpi"><div class="n">{{ stats.installed }}</div><div class="l">in Wallets installiert</div></div>
+  <div class="kpi"><div class="n">{{ stats.issued_30 }}</div><div class="l">ausgegeben, letzte 30 Tage</div></div>
+  <div class="kpi"><div class="n">{{ stats.templates }}</div><div class="l">Vorlagen</div></div>
+</div>
+
+{% if pending %}
+<div class="card"><h2>Wartet auf Freigabe</h2>
+  <table>{% for t in pending %}<tr><td><a href="/portal/templates/{{ t.id }}">{{ t.name }}</a></td><td>Version {{ t.latest_version.number }}</td><td><span class="badge pending">in Prüfung</span></td></tr>{% endfor %}</table>
+</div>
+{% endif %}
+
+<div class="card"><h2>Nächste Schritte</h2>
+  <ol>
+    <li><a href="/portal/templates">Vorlage gestalten</a> und mit einem Test-Pass auf dem eigenen iPhone prüfen.</li>
+    <li>Nach der Freigabe Pässe <a href="/portal/passes/new">einzeln ausgeben</a> oder per <a href="/portal/developers">API</a> aus deinem System.</li>
+    <li>Deinen Kunden den Link zur Pass-Seite schicken oder den Button auf deiner Website einbinden.</li>
+  </ol>
+</div>
+{% endblock %}

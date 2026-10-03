@@ -323,8 +323,19 @@ Die Warteschlange liegt in der Datenbank: Jobs entstehen in derselben Transaktio
 **Webhooks prüfen:** Header `Wallet-Signature: t=<unix>,v1=<hex>`; `v1` = HMAC-SHA256 über `"<t>.<body>"` mit dem
 `secret` aus der Anlage-Antwort. Webhook-Adressen müssen `https://` sein und dürfen nicht auf interne Adressen zeigen.
 
-**Auf einem Server:** `deploy/` enthält Dockerfile, `docker-compose.yml` (PostgreSQL, API, Caddy mit
-automatischem HTTPS) und `.env.example`. Ablauf steht oben in `deploy/docker-compose.yml`.
+**Kunden-Portal und Admin-Bereich:** unter `/portal` gestalten Firmen Vorlagen im Editor (mit Speichern,
+Test-Pass und Freigabe-Status), geben Pässe aus, ändern oder sperren sie, verwalten API-Schlüssel, Webhooks,
+Team (Rollen Inhaber, Admin, Gestalter, Ausgabe, Nur lesen) und sehen eine Statistik. Unter `/admin`
+prüfst du neue Firmen und Vorlagen, ordnest Zertifikate zu, lädst neue `.p12` hoch, siehst Jobs und das
+Audit-Log. Der Login läuft über **Authentik** (OpenID Connect): Mitglieder der Authentik-Gruppe
+`wallet-admins` sind Plattform-Admins. `deploy/authentik/wallet.yaml` richtet beim Start alles ein –
+Anbindung an die Plattform, Admin-Gruppe, Registrierung für neue Firmen und Zwei-Faktor-Pflicht.
+
+Lokal ohne Authentik: `WALLET_DEV_LOGIN=true` aktiviert einen Entwickler-Login unter `/auth/dev-login`
+(**nie in Produktion**).
+
+**Auf einem Server:** `deploy/` enthält Dockerfile, `docker-compose.yml` (PostgreSQL, API, Worker,
+Authentik, Caddy mit automatischem HTTPS für Plattform- und Login-Domain) und `.env.example`. Ablauf steht oben in `deploy/docker-compose.yml`.
 
 **Einstellungen** (Umgebungsvariablen, auch als `…_FILE`):
 
@@ -339,6 +350,11 @@ automatischem HTTPS) und `.env.example`. Ablauf steht oben in `deploy/docker-com
 | `WALLET_APPLE_WEB_SERVICE` | `true` (Standard) trägt den Update-Dienst in die Pässe ein |
 | `WALLET_APNS_PUSH_TYPE` | optionaler Header `apns-push-type` für APNs (Standard: nicht senden) |
 | `WALLET_ALLOW_INSECURE_WEBHOOKS` | nur lokal: Webhooks an `http://` und interne Adressen erlauben |
+| `WALLET_OIDC_ISSUER`, `…_CLIENT_ID`, `…_CLIENT_SECRET` | Login über Authentik, z. B. `https://auth.example.de/application/o/wallet/` |
+| `WALLET_ADMIN_GROUP` | Authentik-Gruppe der Plattform-Admins (Standard `wallet-admins`) |
+| `WALLET_ADMIN_NETWORKS` | Admin-Bereich nur aus diesen Netzen (CIDR, kommagetrennt), z. B. dein VPN |
+| `WALLET_ALLOW_SIGNUP` | neue Firmen dürfen sich selbst registrieren (Standard `true`) |
+| `WALLET_DEV_LOGIN` | nur lokal: Anmeldung ohne Authentik |
 
 Für den Livebetrieb den Button auf der Download-Seite durch Apples offizielles
 „Add to Apple Wallet“-Badge ersetzen (Apple-Richtlinien).

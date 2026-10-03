@@ -1,0 +1,66 @@
+{% extends "base.html" %}
+{% set active = "developers" %}{% set title = "Einbinden" %}
+{% block content %}
+<h1>Einbinden</h1>
+<p class="lead">Pässe aus deinem eigenen System erzeugen: API-Schlüssel, Webhooks und Code für deine Website.
+   Vollständige Doku: <a href="/docs" target="_blank" rel="noopener">API-Referenz</a>.</p>
+
+{% if new_key %}<div class="msg warn">Neuer API-Schlüssel – jetzt kopieren, er wird nicht noch einmal angezeigt:<div class="secret">{{ new_key }}</div></div>{% endif %}
+{% if new_secret %}<div class="msg warn">Geheimnis zum Prüfen der Webhook-Signatur – jetzt kopieren:<div class="secret">{{ new_secret }}</div></div>{% endif %}
+
+<div class="card"><h2>API-Schlüssel</h2>
+  {% if keys %}
+  <table>
+    <tr><th>Name</th><th>Schlüssel</th><th>Erstellt</th><th>Zuletzt benutzt</th><th></th></tr>
+    {% for k in keys %}
+    <tr><td>{{ k.name }}</td><td><code>wk_{{ k.prefix }}_…</code></td><td class="small">{{ k.created_at | d }}</td>
+        <td class="small">{{ k.last_used_at | dt }}</td>
+        <td>{% if k.revoked_at %}<span class="badge err">widerrufen</span>{% elif can("keys") %}
+          <form class="inline" method="post" action="/portal/keys/{{ k.id }}/revoke" onsubmit="return confirm('Schlüssel widerrufen? Systeme, die ihn nutzen, funktionieren dann nicht mehr.')">
+          <input type="hidden" name="csrf" value="{{ csrf }}"><button class="small danger">Widerrufen</button></form>{% endif %}</td></tr>
+    {% endfor %}
+  </table>
+  {% else %}<p class="muted">Noch keine Schlüssel.</p>{% endif %}
+  {% if can("keys") %}
+  <form method="post" action="/portal/keys" class="row" style="margin-top:12px">
+    <input type="hidden" name="csrf" value="{{ csrf }}">
+    <label class="f">Name<input type="text" name="name" maxlength="100" placeholder="z. B. Webshop"></label>
+    <div class="shrink" style="margin-bottom:12px"><button class="primary">Schlüssel erzeugen</button></div>
+  </form>{% endif %}
+</div>
+
+<div class="card"><h2>Pass per API ausgeben</h2>
+<pre>curl -X POST {{ base }}/api/v1/passes \
+  -H "Authorization: Bearer wk_…" \
+  -H "Content-Type: application/json" \
+  -H "Idempotency-Key: bestellung-4711" \
+  -d '{"template_id": "VORLAGEN-ID", "data": {"name": "Anna Beispiel"}}'</pre>
+  <p class="small muted">Die Antwort enthält <code>page_url</code> – den Link für deinen Kunden – und <code>download_url</code> für die Datei selbst.</p>
+  <h2 style="margin-top:16px">Button auf deiner Website</h2>
+<pre>&lt;a href="PAGE_URL_AUS_DER_ANTWORT"&gt;
+  &lt;img src="add-to-apple-wallet.svg" alt="Zu Apple Wallet hinzufügen" height="48"&gt;
+&lt;/a&gt;</pre>
+  <p class="small muted">Das offizielle Badge „Add to Apple Wallet“ stellt Apple bereit; bitte die Gestaltungsregeln von Apple beachten.</p>
+</div>
+
+<div class="card"><h2>Webhooks</h2>
+  <p class="small muted">Wir senden Ereignisse per POST an deine Adresse. Header <code>Wallet-Signature: t=…,v1=…</code> – HMAC-SHA256 über <code>"&lt;t&gt;.&lt;body&gt;"</code> mit deinem Geheimnis.</p>
+  {% if hooks %}
+  <table>
+    <tr><th>Adresse</th><th>Ereignisse</th><th></th></tr>
+    {% for h in hooks %}
+    <tr><td class="small"><code>{{ h.url }}</code></td><td class="small">{{ h.events | join(", ") }}</td>
+      <td>{% if can("keys") %}<form class="inline" method="post" action="/portal/webhooks/{{ h.id }}/test"><input type="hidden" name="csrf" value="{{ csrf }}"><button class="small">Testen</button></form>
+          <form class="inline" method="post" action="/portal/webhooks/{{ h.id }}/delete" onsubmit="return confirm('Webhook löschen?')"><input type="hidden" name="csrf" value="{{ csrf }}"><button class="small danger">Löschen</button></form>{% endif %}</td></tr>
+    {% endfor %}
+  </table>
+  {% endif %}
+  {% if can("keys") %}
+  <form method="post" action="/portal/webhooks" style="margin-top:12px">
+    <input type="hidden" name="csrf" value="{{ csrf }}">
+    <label class="f">Adresse (https://)<input type="url" name="url" required placeholder="https://shop.example.de/hooks/wallet"></label>
+    <p class="small">{% for e in events %}<label style="margin-right:14px"><input type="checkbox" name="events" value="{{ e }}" checked> <code>{{ e }}</code></label>{% endfor %}</p>
+    <button class="primary">Webhook anlegen</button>
+  </form>{% endif %}
+</div>
+{% endblock %}

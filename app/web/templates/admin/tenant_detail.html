@@ -1,0 +1,56 @@
+{% extends "base.html" %}
+{% set area = "admin" %}{% set active = "tenants" %}{% set title = t.name %}
+{% block content %}
+<p class="small"><a href="/admin/tenants">← Firmen</a></p>
+<h1>{{ t.name }}</h1>
+<p class="lead"><span class="badge {{ t.status }}">{{ t.status }}</span> · Tarif {{ t.plan }} · {{ active }} aktive Pässe · seit {{ t.created_at | d }}</p>
+
+<div class="card"><h2>Angaben</h2>
+  <table>
+    <tr><td class="muted">Name im Pass</td><td>{{ t.organization_name }}</td></tr>
+    <tr><td class="muted">Anschrift</td><td style="white-space:pre-line">{{ t.address or "–" }}</td></tr>
+    <tr><td class="muted">USt-ID</td><td>{{ t.vat_id or "–" }}</td></tr>
+    <tr><td class="muted">Kontakt</td><td>{{ t.contact_email or "–" }}</td></tr>
+    {% if t.review_note %}<tr><td class="muted">Notiz</td><td>{{ t.review_note }}</td></tr>{% endif %}
+  </table>
+</div>
+
+<div class="card"><h2>Freischaltung</h2>
+  <form method="post" action="/admin/tenants/{{ t.id }}/status">
+    <input type="hidden" name="csrf" value="{{ csrf }}">
+    <label class="f">Notiz (Begründung, sieht die Firma bei Sperre)<input type="text" name="note" value="{{ t.review_note }}" maxlength="2000"></label>
+    {% if t.status != "active" %}<button class="primary" name="status" value="active">Freischalten</button>{% endif %}
+    {% if t.status != "suspended" %}<button class="danger" name="status" value="suspended" onclick="return confirm('Firma sperren? Neue Pässe und Updates stoppen.')">Sperren</button>{% endif %}
+  </form>
+</div>
+
+<div class="card"><h2>Zertifikat und Tarif</h2>
+  <div class="row">
+    <form method="post" action="/admin/tenants/{{ t.id }}/certificate" class="row">
+      <input type="hidden" name="csrf" value="{{ csrf }}">
+      <label class="f">Pass Type ID<select name="certificate_id"><option value="">– keins –</option>{% for c in certs %}<option value="{{ c.id }}" {{ "selected" if t.certificate_id == c.id }}>{{ c.pass_type_identifier }} (bis {{ c.expires_at | d }})</option>{% endfor %}</select></label>
+      <div class="shrink" style="margin-bottom:12px"><button>Zuordnen</button></div>
+    </form>
+    <form method="post" action="/admin/tenants/{{ t.id }}/plan" class="row">
+      <input type="hidden" name="csrf" value="{{ csrf }}">
+      <label class="f">Tarif<select name="plan">{% for p in plans %}<option {{ "selected" if p == t.plan }}>{{ p }}</option>{% endfor %}</select></label>
+      <div class="shrink" style="margin-bottom:12px"><button>Speichern</button></div>
+    </form>
+  </div>
+  <p class="small muted">Neues Zertifikat: <a href="/admin/certificates">Zertifikate</a>. Empfehlung: eine eigene Pass Type ID pro Firma.</p>
+</div>
+
+<div class="card"><h2>Team</h2>
+  <table>{% for m in members %}<tr><td>{{ m.email }}</td><td>{{ ROLES[m.role] }}</td><td class="small">{{ m.last_login_at | dt }}</td></tr>{% else %}<tr><td class="muted">Niemand.</td></tr>{% endfor %}</table>
+</div>
+
+<div class="card"><h2>Vorlagen</h2>
+  <table>{% for tpl in templates %}<tr><td>{{ tpl.name }}</td><td>v{{ tpl.latest_version.number }}</td>
+    <td><span class="badge {{ tpl.latest_version.status }}">{{ tpl.latest_version.status }}</span></td>
+    <td>{% if tpl.latest_version.status == "pending" %}<a href="/admin/reviews/{{ tpl.latest_version.id }}">prüfen</a>{% endif %}</td></tr>{% else %}<tr><td class="muted">Keine.</td></tr>{% endfor %}</table>
+</div>
+
+<div class="card"><h2>Letzte Aktivität</h2>
+  <table>{% for e in log %}<tr><td class="small">{{ e.created_at | dt }}</td><td class="small">{{ e.actor }}</td><td><code>{{ e.action }}</code></td></tr>{% else %}<tr><td class="muted">Nichts.</td></tr>{% endfor %}</table>
+</div>
+{% endblock %}

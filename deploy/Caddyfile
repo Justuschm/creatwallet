@@ -10,3 +10,10 @@
 	}
 	reverse_proxy api:8000
 }
+
+# Login-Dienst (Authentik) unter eigener Subdomain
+{$WALLET_AUTH_DOMAIN} {
+	encode gzip
+	header Strict-Transport-Security "max-age=31536000; includeSubDomains"
+	reverse_proxy authentik-server:9000
+}

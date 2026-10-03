@@ -44,6 +44,17 @@ class Settings:
     apns_push_type: str = ""
     # Webhooks auch an http:// und interne Adressen (nur für lokale Tests!)
     allow_insecure_webhooks: bool = False
+    # Login für Portal und Admin über Authentik (OpenID Connect)
+    oidc_issuer: str = ""  # z. B. https://auth.example.de/application/o/wallet/
+    oidc_client_id: str = ""
+    oidc_client_secret: str = ""
+    admin_group: str = "wallet-admins"
+    # Admin-Bereich nur aus diesen Netzen (CIDR, kommagetrennt; leer = alle)
+    admin_networks: tuple = field(default_factory=tuple)
+    # NUR für Tests/lokale Entwicklung: Anmeldung ohne Authentik über /auth/dev-login
+    dev_login: bool = False
+    # Neue Firmen dürfen sich selbst registrieren (sonst nur per Einladung)
+    allow_signup: bool = True
     max_request_bytes: int = 15 * 1024 * 1024
     cors_origins: tuple = field(default_factory=tuple)
 
@@ -66,5 +77,12 @@ def get_settings():
         apns_host=_env("APNS_HOST", Settings.apns_host),
         apns_push_type=_env("APNS_PUSH_TYPE", ""),
         allow_insecure_webhooks=_bool(_env("ALLOW_INSECURE_WEBHOOKS", "false")),
+        oidc_issuer=_env("OIDC_ISSUER", ""),
+        oidc_client_id=_env("OIDC_CLIENT_ID", ""),
+        oidc_client_secret=_env("OIDC_CLIENT_SECRET", ""),
+        admin_group=_env("ADMIN_GROUP", Settings.admin_group),
+        admin_networks=tuple(n.strip() for n in (_env("ADMIN_NETWORKS", "") or "").split(",") if n.strip()),
+        allow_signup=_bool(_env("ALLOW_SIGNUP", "true")),
+        dev_login=_bool(_env("DEV_LOGIN", "false")),
         cors_origins=tuple(o for o in (_env("CORS_ORIGINS", "") or "").split(",") if o),
     )

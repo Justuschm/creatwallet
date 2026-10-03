@@ -1,0 +1,43 @@
+{% extends "base.html" %}
+{% set area = "admin" %}{% set active = "reviews" %}{% set title = "Prüfung" %}
+{% block content %}
+<p class="small"><a href="/admin/reviews">← Prüfungen</a></p>
+<h1>{{ version.template.name }} · Version {{ version.number }}</h1>
+<p class="lead"><a href="/admin/tenants/{{ tenant.id }}">{{ tenant.name }}</a> (<span class="badge {{ tenant.status }}">{{ tenant.status }}</span>)
+  · Name im Pass: <strong>{{ version.pass_json.get("organizationName", tenant.organization_name) }}</strong>
+  {% if previous %} · bisher freigegeben: v{{ previous.number }}{% endif %}</p>
+
+<div class="card"><h2>Worauf achten</h2>
+  <ul class="small">
+    <li>Passt der Name im Pass zur Firma? Keine fremden Marken, Logos oder Behörden.</li>
+    <li>Keine irreführenden Inhalte (z. B. gefälschte Tickets, Ausweise, Zahlungskarten).</li>
+    <li>Links (Event-Guide, Rückseite) führen auf Seiten der Firma.</li>
+  </ul>
+</div>
+
+{% if version.status == "pending" %}
+<div class="card"><h2>Entscheidung</h2>
+  <form method="post" action="/admin/reviews/{{ version.id }}/approve" class="inline">
+    <input type="hidden" name="csrf" value="{{ csrf }}"><button class="primary">Freigeben</button></form>
+  <form method="post" action="/admin/reviews/{{ version.id }}/test-pass/download" class="inline">
+    <input type="hidden" name="csrf" value="{{ csrf }}"><button>Test-Pass laden</button></form>
+  <form method="post" action="/admin/reviews/{{ version.id }}/reject" style="margin-top:14px">
+    <input type="hidden" name="csrf" value="{{ csrf }}">
+    <label class="f">Begründung für die Firma<input type="text" name="note" maxlength="2000" placeholder="z. B. Logo einer fremden Marke"></label>
+    <button class="danger">Ablehnen</button>
+  </form>
+</div>
+{% else %}<div class="msg">Status: {{ version.status }}{% if version.review_note %} – {{ version.review_note }}{% endif %}</div>{% endif %}
+
+{% set problems = issues | selectattr("level", "in", ["error", "warning"]) | list %}
+{% if problems %}<div class="card"><h2>Prüfung nach Apple-Regeln</h2>
+  <ul class="issues">{% for i in problems %}<li class="{{ i.level }}"><code>{{ i.path }}</code> {{ i.message }}</li>{% endfor %}</ul></div>{% endif %}
+
+<div class="card"><h2>Bilder</h2>
+  <div class="thumbs">{% for name, b64 in images.items() %}<figure><img src="data:image/png;base64,{{ b64 }}" alt="">{{ name }}</figure>{% endfor %}</div>
+</div>
+<div class="card"><h2>pass.json</h2>
+  <p class="small">Platzhalter: {% for p in placeholders %}<code>{{ p }}</code> {% else %}keine{% endfor %}</p>
+  <pre>{{ pass_json }}</pre>
+</div>
+{% endblock %}

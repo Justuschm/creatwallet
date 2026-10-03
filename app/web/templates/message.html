@@ -1,0 +1,8 @@
+{% extends "base.html" %}
+{% block body %}
+<div class="center"><div class="card">
+  <h1>{{ title }}</h1>
+  <p>{{ text }}</p>
+  <p><a href="javascript:history.back()">Zurück</a>{% if user %} · <a href="/portal">Zum Portal</a>{% else %} · <a href="/auth/login">Anmelden</a>{% endif %}</p>
+</div></div>
+{% endblock %}

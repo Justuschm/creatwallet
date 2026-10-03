@@ -1,0 +1,13 @@
+{% extends "base.html" %}
+{% block body %}
+<div class="center"><div class="card">
+  <h1>Entwickler-Login</h1>
+  <p class="lead">Nur für lokale Tests – in Produktion meldet man sich über Authentik an.</p>
+  <form method="post" action="/auth/dev-login">
+    <input type="hidden" name="csrf" value="{{ csrf }}">
+    <label class="f">E-Mail<input type="email" name="email" required value="test@example.com"></label>
+    <label class="f" style="flex-direction:row;align-items:center;gap:8px"><input type="checkbox" name="admin" value="true"> als Plattform-Admin</label>
+    <button class="primary">Anmelden</button>
+  </form>
+</div></div>
+{% endblock %}

@@ -15,7 +15,7 @@ from sqlalchemy import select
 from .config import get_settings
 from .db import make_engine, make_sessionmaker
 from .models import ApiKey, Certificate, Template, TemplateVersion, Tenant, utcnow
-from .security import Vault, generate_api_key
+from .security import Vault
 
 
 def _session():
@@ -69,9 +69,10 @@ def cmd_set_status(args):
 
 def cmd_create_api_key(args):
     _, s = _session()
+    from .services import create_api_key
+
     t = _tenant(s, args.tenant)
-    key, prefix, secret_hash = generate_api_key()
-    s.add(ApiKey(tenant_id=t.id, name=args.name, prefix=prefix, secret_hash=secret_hash))
+    _, key = create_api_key(s, t, args.name)
     s.commit()
     print(f"API-Schlüssel für {t.name} (wird nur jetzt angezeigt):\n\n  {key}\n")
 

@@ -1,0 +1,31 @@
+{% extends "base.html" %}
+{% set active = "passes" %}{% set title = "Pässe" %}
+{% block content %}
+<h1>Pässe</h1>
+<p class="lead">Alle ausgegebenen Pässe, neueste zuerst.</p>
+<div class="card">
+  <form method="get" class="row">
+    <label class="f">Suche (Seriennummer oder Inhalt)<input type="search" name="q" value="{{ q }}"></label>
+    <label class="f">Vorlage<select name="template_id"><option value="">alle</option>{% for t in templates %}<option value="{{ t.id }}" {{ "selected" if t.id == template_id }}>{{ t.name }}</option>{% endfor %}</select></label>
+    <div class="shrink" style="margin-bottom:12px"><button>Suchen</button>
+      {% if can("passes") %}<a class="btn primary" href="/portal/passes/new">Pass ausgeben</a>{% endif %}</div>
+  </form>
+  {% if items %}
+  <table>
+    <tr><th>Seriennummer</th><th>Vorlage</th><th>Inhalt</th><th>Status</th><th>Geräte</th><th>Erstellt</th></tr>
+    {% for p in items %}
+    <tr>
+      <td><a href="/portal/passes/{{ p.id }}"><code>{{ p.serial_number }}</code></a></td>
+      <td class="small">{{ p.template.name }}</td>
+      <td class="small">{% for k, val in p.data.items() %}{% if loop.index <= 3 %}{{ val }}{{ " · " if not loop.last and loop.index < 3 }}{% endif %}{% endfor %}</td>
+      <td><span class="badge {{ p.status }}">{{ "aktiv" if p.status == "active" else "gesperrt" }}</span></td>
+      <td>{{ p.registrations | length }}</td>
+      <td class="small muted">{{ p.created_at | dt }}</td>
+    </tr>
+    {% endfor %}
+  </table>
+  <p class="small">{% if page > 1 %}<a href="?q={{ q | urlencode }}&template_id={{ template_id }}&page={{ page - 1 }}">← neuere</a>{% endif %}
+     {% if more %} <a href="?q={{ q | urlencode }}&template_id={{ template_id }}&page={{ page + 1 }}">ältere →</a>{% endif %}</p>
+  {% else %}<p class="muted">Keine Pässe gefunden.</p>{% endif %}
+</div>
+{% endblock %}

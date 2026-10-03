@@ -1,0 +1,34 @@
+{% extends "base.html" %}
+{% set active = "passes" %}{% set title = p.serial_number %}
+{% block content %}
+<p class="small"><a href="/portal/passes">← Pässe</a></p>
+<h1><code>{{ p.serial_number }}</code></h1>
+<p class="lead"><span class="badge {{ p.status }}">{{ "aktiv" if p.status == "active" else "gesperrt" }}</span>
+  · {{ p.template.name }} · Version {{ p.version }} · auf {{ p.registrations | length }} Gerät(en) · geändert {{ p.updated_at | dt }}</p>
+
+<div class="card"><h2>Link für den Kunden</h2>
+  <div class="secret">{{ page_url }}</div>
+  <p class="row"><a class="btn shrink" href="{{ page_url }}" target="_blank" rel="noopener">Seite öffnen</a>
+     <a class="btn shrink" href="{{ page_url }}/pass.pkpass">.pkpass herunterladen</a></p>
+</div>
+
+<div class="card"><h2>Inhalt</h2>
+  {% if p.status == "active" and can("passes") %}
+  <form method="post" action="/portal/passes/{{ p.id }}">
+    <input type="hidden" name="csrf" value="{{ csrf }}">
+    {% for f in fields %}<label class="f">{{ f }}<input type="text" name="f_{{ f }}" value="{{ p.data.get(f, '') }}"></label>{% endfor %}
+    <button class="primary">Speichern und an Geräte senden</button>
+  </form>
+  {% else %}
+  <table>{% for k, val in p.data.items() %}<tr><td class="muted">{{ k }}</td><td>{{ val }}</td></tr>{% endfor %}</table>
+  {% endif %}
+</div>
+
+{% if p.status == "active" and can("passes") %}
+<div class="card"><h2>Sperren</h2>
+  <p class="small muted">Für stornierte Tickets oder gekündigte Mitgliedschaften. Der Pass bleibt in der Wallet, wird dort aber als ungültig angezeigt. Nicht umkehrbar.</p>
+  <form method="post" action="/portal/passes/{{ p.id }}/void" onsubmit="return confirm('Pass wirklich sperren?')">
+    <input type="hidden" name="csrf" value="{{ csrf }}"><button class="danger">Pass sperren</button></form>
+</div>
+{% endif %}
+{% endblock %}

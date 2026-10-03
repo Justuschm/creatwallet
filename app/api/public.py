@@ -50,7 +50,7 @@ def pass_page(token: str, request: Request, session: Session = Depends(get_sessi
     qr = segno.make(page_url, error="m").svg_inline(scale=5, border=2, dark="#000", light="#fff")
     logo = f'<img class="logo" src="/p/{html.escape(token)}/logo.png" alt="">' if _logo(p) else ""
     voided = p.status == "voided"
-    body = (f'<p class="note">Dieser Pass ist nicht mehr gültig.</p>' if voided else
+    body = ('<p class="note">Dieser Pass ist nicht mehr gültig.</p>' if voided else
             f'''<a class="wallet" href="/p/{html.escape(token)}/pass.pkpass">
       <small>Hinzufügen zu</small><br>Apple Wallet</a>
     <div class="qr"><p>Am Computer? Code mit der iPhone-Kamera scannen:</p>{qr}</div>''')
