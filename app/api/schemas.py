@@ -87,6 +87,7 @@ class PassOut(BaseModel):
     data: dict[str, Any]
     created_at: datetime
     updated_at: datetime
+    installed_devices: int = Field(0, description="Anzahl Geräte, auf denen der Pass in der Wallet liegt")
     page_url: str = Field(description="Seite für den Endkunden mit Button und QR-Code")
     download_url: str = Field(description="Direkter Download der .pkpass-Datei")
 
@@ -110,3 +111,20 @@ class AccountOut(BaseModel):
 class ErrorOut(BaseModel):
     error: str
     issues: list[IssueOut] = []
+
+
+class WebhookCreate(BaseModel):
+    model_config = ConfigDict(json_schema_extra={"examples": [
+        {"url": "https://shop.example.de/hooks/wallet", "events": ["pass.installed", "pass.removed"]}]})
+
+    url: str = Field(max_length=2000, description="https-Adresse, an die Ereignisse per POST gehen")
+    events: list[str] = Field(description="pass.installed, pass.removed, pass.updated, pass.voided")
+
+
+class WebhookOut(BaseModel):
+    id: str
+    url: str
+    events: list[str]
+    active: bool
+    created_at: datetime
+    secret: str | None = Field(None, description="Nur beim Anlegen: zum Prüfen der Signatur (Header Wallet-Signature)")

@@ -265,7 +265,7 @@ python3 -m unittest discover -s tests -t .
 
 Die Tests erzeugen eigene Test-Zertifikate, bauen jede Vorlage und prüfen die Signatur mit `openssl cms -verify`.
 
-## 9. Plattform-API (Phase 1)
+## 9. Plattform-API
 
 Im Paket `app/` steckt die mandantenfähige Plattform: Firmen legen Vorlagen mit Platzhaltern an
 (`"value": "{{name}}"`) und geben per REST-API Pässe aus, die mit **deinem** Zertifikat signiert werden.
@@ -310,6 +310,18 @@ curl -s -X POST localhost:8000/api/v1/passes -H "Authorization: Bearer $KEY" \
 | `POST /api/v1/passes/{id}/void` | Pass sperren |
 | `GET /api/v1/passes/{id}/pkpass` | Datei fürs eigene Backend (z. B. E-Mail-Anhang) |
 | `GET /p/{token}` | öffentliche Seite für Endkunden; `/p/{token}/pass.pkpass` lädt den Pass |
+| `GET/POST /api/v1/webhooks`, `DELETE /api/v1/webhooks/{id}`, `POST …/{id}/test` | Webhooks für `pass.installed`, `pass.removed`, `pass.updated`, `pass.voided` |
+| `/v1/devices/…`, `/v1/passes/…`, `/v1/log` | Apple-Web-Service: Pfade gibt Apple vor, hier melden sich die iPhones |
+
+**Automatische Updates (Phase 2):** Jeder Pass enthält `webServiceURL` und ein eigenes `authenticationToken`.
+Legt jemand den Pass in die Wallet, meldet sich das iPhone an. Bei `PATCH`, `void` oder einer neu
+freigegebenen Vorlage legt die API einen Push-Job an; der Worker (`python -m app worker`, in Docker eigener
+Dienst) schickt über Apple (APNs) ein Signal, und das iPhone lädt die neue Version. Fehlgeschlagene Pushes
+und Webhooks werden bis zu sechsmal mit wachsendem Abstand wiederholt (`python -m app jobs` zeigt den Stand).
+Die Warteschlange liegt in der Datenbank: Jobs entstehen in derselben Transaktion wie die Änderung.
+
+**Webhooks prüfen:** Header `Wallet-Signature: t=<unix>,v1=<hex>`; `v1` = HMAC-SHA256 über `"<t>.<body>"` mit dem
+`secret` aus der Anlage-Antwort. Webhook-Adressen müssen `https://` sein und dürfen nicht auf interne Adressen zeigen.
 
 **Auf einem Server:** `deploy/` enthält Dockerfile, `docker-compose.yml` (PostgreSQL, API, Caddy mit
 automatischem HTTPS) und `.env.example`. Ablauf steht oben in `deploy/docker-compose.yml`.
@@ -324,7 +336,9 @@ automatischem HTTPS) und `.env.example`. Ablauf steht oben in `deploy/docker-com
 | `WALLET_WWDR` | Apple-WWDR-Zertifikat |
 | `WALLET_CERT_BACKEND` | `file` (verschlüsselt in `WALLET_CERT_DIR`) oder `openbao` (`WALLET_OPENBAO_ADDR`, `…_TOKEN`) |
 | `WALLET_REQUIRE_TEMPLATE_APPROVAL` | `true`: Vorlagen erst nach Freigabe nutzbar |
-| `WALLET_APPLE_WEB_SERVICE` | `true` trägt den Update-Dienst in die Pässe ein (erst mit Phase 2 einschalten) |
+| `WALLET_APPLE_WEB_SERVICE` | `true` (Standard) trägt den Update-Dienst in die Pässe ein |
+| `WALLET_APNS_PUSH_TYPE` | optionaler Header `apns-push-type` für APNs (Standard: nicht senden) |
+| `WALLET_ALLOW_INSECURE_WEBHOOKS` | nur lokal: Webhooks an `http://` und interne Adressen erlauben |
 
 Für den Livebetrieb den Button auf der Download-Seite durch Apples offizielles
 „Add to Apple Wallet“-Badge ersetzen (Apple-Richtlinien).

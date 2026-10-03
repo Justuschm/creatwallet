@@ -10,7 +10,7 @@ from ..config import get_settings
 from ..db import make_engine, make_sessionmaker
 from ..security import Vault
 from ..services import ServiceError, issues_json
-from . import public, routes
+from . import apple, public, routes
 
 DESCRIPTION = """
 API zum Ausgeben von Apple-Wallet-Pässen.
@@ -59,4 +59,5 @@ def create_app(settings=None, engine=None, signers=None):
 
     app.include_router(routes.router)
     app.include_router(public.router)
+    app.include_router(apple.router)
     return app

@@ -156,6 +156,37 @@ def cmd_reject(args):
     print(f"Abgelehnt: {v.template.name} v{v.number}")
 
 
+def cmd_worker(args):
+    import logging
+
+    from .apns import ApnsPusher
+    from .certs import make_store
+    from .worker import Worker
+
+    logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s: %(message)s")
+    settings = get_settings()
+    Session = make_sessionmaker(make_engine(settings.database_url))
+    store = make_store(settings)
+    worker = Worker(Session, settings, Vault(settings.secret_key),
+                    ApnsPusher(store, settings.apns_host, settings.apns_push_type))
+    if args.once:
+        print(f"{worker.run_until_empty()} Jobs erledigt.")
+    else:
+        worker.run_forever()
+
+
+def cmd_jobs(args):
+    from sqlalchemy import func
+
+    from .models import Job
+
+    _, s = _session()
+    for status, n in s.execute(select(Job.status, func.count()).group_by(Job.status)).all():
+        print(f"{status:<8} {n}")
+    for j in s.scalars(select(Job).where(Job.status == "failed").order_by(Job.updated_at.desc()).limit(10)):
+        print(f"  fehlgeschlagen {j.updated_at:%d.%m. %H:%M} {j.kind}: {j.last_error[:120]}")
+
+
 def main(argv=None):
     p = argparse.ArgumentParser(prog="python -m app", description="Verwaltung der Wallet-Pass-Plattform")
     sub = p.add_subparsers(dest="cmd", required=True)
@@ -205,6 +236,11 @@ def main(argv=None):
     rj.add_argument("--version", type=int)
     rj.add_argument("--note", required=True)
     rj.set_defaults(func=cmd_reject)
+
+    w = sub.add_parser("worker", help="Hintergrund-Worker (Push, Webhooks) starten")
+    w.add_argument("--once", action="store_true", help="nur fällige Jobs abarbeiten und beenden")
+    w.set_defaults(func=cmd_worker)
+    sub.add_parser("jobs", help="Status der Hintergrundaufgaben").set_defaults(func=cmd_jobs)
 
     args = p.parse_args(argv)
     args.func(args)

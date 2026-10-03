@@ -141,3 +141,64 @@ class Pass(Base):
 
     tenant: Mapped[Tenant] = relationship()
     template: Mapped[Template] = relationship()
+    registrations: Mapped[list["Registration"]] = relationship(back_populates="pass_", cascade="all, delete-orphan")
+
+
+# ---------------------------------------------------------------- Phase 2: Updates, Push, Webhooks
+
+class Device(Base):
+    """Ein iPhone bzw. eine Apple Watch, wie Apple sie beim Web-Service meldet."""
+
+    __tablename__ = "devices"
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=new_id)
+    device_library_identifier: Mapped[str] = mapped_column(String(200), unique=True)
+    push_token: Mapped[str] = mapped_column(String(200))
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
+
+    registrations: Mapped[list["Registration"]] = relationship(back_populates="device", cascade="all, delete-orphan")
+
+
+class Registration(Base):
+    """Pass liegt in der Wallet dieses Geräts."""
+
+    __tablename__ = "registrations"
+    __table_args__ = (UniqueConstraint("device_id", "pass_id"),)
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=new_id)
+    device_id: Mapped[str] = mapped_column(ForeignKey("devices.id", ondelete="CASCADE"), index=True)
+    pass_id: Mapped[str] = mapped_column(ForeignKey("passes.id", ondelete="CASCADE"), index=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
+
+    device: Mapped[Device] = relationship(back_populates="registrations")
+    pass_: Mapped[Pass] = relationship(back_populates="registrations")
+
+
+class WebhookEndpoint(Base):
+    __tablename__ = "webhook_endpoints"
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=new_id)
+    tenant_id: Mapped[str] = mapped_column(ForeignKey("tenants.id", ondelete="CASCADE"), index=True)
+    url: Mapped[str] = mapped_column(String(2000))
+    secret_enc: Mapped[str] = mapped_column(Text)
+    events: Mapped[list] = mapped_column(JSONType, default=list)
+    active: Mapped[bool] = mapped_column(default=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
+
+
+class Job(Base):
+    """Hintergrundaufgabe (Push, Webhook). Wird in derselben Transaktion wie die Änderung
+    angelegt, die sie auslöst - so geht keine Benachrichtigung verloren."""
+
+    __tablename__ = "jobs"
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=new_id)
+    kind: Mapped[str] = mapped_column(String(40))
+    payload: Mapped[dict] = mapped_column(JSONType, default=dict)
+    status: Mapped[str] = mapped_column(String(20), default="pending", index=True)  # pending|running|done|failed
+    attempts: Mapped[int] = mapped_column(Integer, default=0)
+    run_after: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow, index=True)
+    last_error: Mapped[str] = mapped_column(Text, default="")
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)

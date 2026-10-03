@@ -36,8 +36,14 @@ class Settings:
     openbao_prefix: str = "wallet/certs"
     # Neue Vorlagen müssen vom Admin freigegeben werden, bevor Pässe ausgegeben werden.
     require_template_approval: bool = True
-    # Apple-Web-Service (Updates) eintragen - erst einschalten, wenn Phase 2 läuft.
-    apple_web_service: bool = False
+    # Apple-Web-Service (Updates) in die Pässe eintragen.
+    apple_web_service: bool = True
+    # APNs: Wallet-Pässe nutzen immer den Produktions-Host.
+    apns_host: str = "api.push.apple.com"
+    # Optionaler Header apns-push-type (leer = nicht senden); beim ersten echten Test prüfen.
+    apns_push_type: str = ""
+    # Webhooks auch an http:// und interne Adressen (nur für lokale Tests!)
+    allow_insecure_webhooks: bool = False
     max_request_bytes: int = 15 * 1024 * 1024
     cors_origins: tuple = field(default_factory=tuple)
 
@@ -56,6 +62,9 @@ def get_settings():
         openbao_mount=_env("OPENBAO_MOUNT", Settings.openbao_mount),
         openbao_prefix=_env("OPENBAO_PREFIX", Settings.openbao_prefix),
         require_template_approval=_bool(_env("REQUIRE_TEMPLATE_APPROVAL", "true")),
-        apple_web_service=_bool(_env("APPLE_WEB_SERVICE", "false")),
+        apple_web_service=_bool(_env("APPLE_WEB_SERVICE", "true")),
+        apns_host=_env("APNS_HOST", Settings.apns_host),
+        apns_push_type=_env("APNS_PUSH_TYPE", ""),
+        allow_insecure_webhooks=_bool(_env("ALLOW_INSECURE_WEBHOOKS", "false")),
         cors_origins=tuple(o for o in (_env("CORS_ORIGINS", "") or "").split(",") if o),
     )

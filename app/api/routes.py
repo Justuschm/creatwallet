@@ -11,12 +11,13 @@ from creatwallet.build import BuildError, build_pkpass
 from creatwallet.templates import TEMPLATES, new_pass, placeholder_images
 
 from .. import placeholders, services
-from ..models import Pass, Template, Tenant, utcnow
+from .. import jobs, webhooks
+from ..models import Pass, Template, Tenant, WebhookEndpoint, utcnow
 from ..security import random_token
 from ..services import ServiceError, issues_json
 from .deps import ctx, get_session, get_tenant
 from .schemas import (AccountOut, PassCreate, PassList, PassOut, PassUpdate, TemplateCreate, TemplateOut,
-                      TemplateUpdate, TestPassRequest)
+                      TemplateUpdate, TestPassRequest, WebhookCreate, WebhookOut)
 
 router = APIRouter(prefix="/api/v1")
 PKPASS = "application/vnd.apple.pkpass"
@@ -54,7 +55,7 @@ def pass_out(p: Pass, settings):
     base = f"{settings.public_base_url}/p/{p.download_token}"
     return PassOut(id=p.id, serial_number=p.serial_number, template_id=p.template_id, status=p.status,
                    version=p.version, data=p.data, created_at=p.created_at, updated_at=p.updated_at,
-                   page_url=base, download_url=f"{base}/pass.pkpass")
+                   installed_devices=len(p.registrations), page_url=base, download_url=f"{base}/pass.pkpass")
 
 
 # ---------------------------------------------------------------- Konto
@@ -193,7 +194,7 @@ def update_pass(pass_id: str, body: PassUpdate, request: Request, tenant: Tenant
 def void_pass(pass_id: str, request: Request, tenant: Tenant = Depends(get_tenant),
               session: Session = Depends(get_session)):
     p = services.get_pass(session, tenant, pass_id)
-    services.void_pass(p)
+    services.void_pass(session, p)
     session.commit()
     return pass_out(p, ctx(request)[0])
 
@@ -207,3 +208,64 @@ def download_pass(pass_id: str, request: Request, tenant: Tenant = Depends(get_t
     data = services.build_pass(p, settings, signers, vault)
     return Response(data, media_type=PKPASS,
                     headers={"Content-Disposition": f'attachment; filename="{p.serial_number}.pkpass"'})
+
+
+# ---------------------------------------------------------------- Webhooks
+
+def webhook_out(ep, secret=None):
+    return WebhookOut(id=ep.id, url=ep.url, events=ep.events, active=ep.active, created_at=ep.created_at,
+                      secret=secret)
+
+
+@router.get("/webhooks", response_model=list[WebhookOut], response_model_exclude_none=True, tags=["Webhooks"],
+            summary="Webhooks auflisten")
+def list_webhooks(tenant: Tenant = Depends(get_tenant), session: Session = Depends(get_session)):
+    return [webhook_out(ep) for ep in session.query(WebhookEndpoint).filter_by(tenant_id=tenant.id)
+            .order_by(WebhookEndpoint.created_at)]
+
+
+@router.post("/webhooks", response_model=WebhookOut, response_model_exclude_none=True, status_code=201,
+             tags=["Webhooks"], summary="Webhook anlegen",
+             description="Jede Zustellung trägt den Header Wallet-Signature: t=<unix>,v1=<hmac>. v1 ist "
+                         "HMAC-SHA256 über '<t>.<body>' mit dem secret aus der Antwort.")
+def create_webhook(body: WebhookCreate, request: Request, tenant: Tenant = Depends(get_tenant),
+                   session: Session = Depends(get_session)):
+    settings, _, vault = ctx(request)
+    unknown = [e for e in body.events if e not in jobs.EVENTS]
+    if not body.events or unknown:
+        raise ServiceError(422, "events: mindestens eines von " + ", ".join(jobs.EVENTS))
+    try:
+        webhooks.check_url(body.url, settings.allow_insecure_webhooks)
+    except webhooks.UnsafeUrl as exc:
+        raise ServiceError(422, str(exc)) from exc
+    if session.query(WebhookEndpoint).filter_by(tenant_id=tenant.id).count() >= 10:
+        raise ServiceError(409, "Höchstens 10 Webhooks pro Konto.")
+    secret = "whsec_" + random_token(24)
+    ep = WebhookEndpoint(tenant_id=tenant.id, url=body.url, events=sorted(set(body.events)),
+                         secret_enc=vault.encrypt(secret))
+    session.add(ep)
+    session.commit()
+    return webhook_out(ep, secret)
+
+
+@router.delete("/webhooks/{webhook_id}", status_code=204, tags=["Webhooks"], summary="Webhook löschen")
+def delete_webhook(webhook_id: str, tenant: Tenant = Depends(get_tenant), session: Session = Depends(get_session)):
+    ep = session.get(WebhookEndpoint, webhook_id)
+    if ep is None or ep.tenant_id != tenant.id:
+        raise ServiceError(404, "Webhook nicht gefunden.")
+    session.delete(ep)
+    session.commit()
+    return Response(status_code=204)
+
+
+@router.post("/webhooks/{webhook_id}/test", status_code=202, tags=["Webhooks"],
+             summary="Test-Ereignis senden", description="Stellt ein Ereignis vom Typ webhook.test zu.")
+def test_webhook(webhook_id: str, tenant: Tenant = Depends(get_tenant), session: Session = Depends(get_session)):
+    ep = session.get(WebhookEndpoint, webhook_id)
+    if ep is None or ep.tenant_id != tenant.id:
+        raise ServiceError(404, "Webhook nicht gefunden.")
+    jobs.enqueue(session, jobs.WEBHOOK, {"endpoint_id": ep.id, "body": {
+        "id": "evt_test_" + random_token(8), "type": "webhook.test",
+        "created_at": utcnow().isoformat(timespec="seconds"), "data": {}}})
+    session.commit()
+    return {"queued": True}

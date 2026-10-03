@@ -5,11 +5,12 @@ import copy
 import re
 
 from sqlalchemy import select
+from sqlalchemy.orm import object_session
 
 from creatwallet import validation as v
 from creatwallet.build import BuildError, build_pkpass
 
-from . import placeholders
+from . import jobs, placeholders
 from .certs import CertStoreError
 from .models import Pass, Template, TemplateFile, TemplateVersion, Tenant, utcnow
 from .security import Vault, random_token
@@ -116,8 +117,17 @@ def _add_version(session, template, pass_json, files, settings):
 def approve_version(version, note=""):
     version.status = "approved"
     version.review_note = note
-    version.template.approved_version = version
-    version.template.updated_at = utcnow()
+    template = version.template
+    template.approved_version = version
+    template.updated_at = utcnow()
+    session = object_session(version)
+    if session is not None and template.id:
+        # Alle aktiven Pässe der Vorlage bekommen das neue Design: Version erhöhen, Geräte benachrichtigen.
+        now = utcnow()
+        for p in session.scalars(select(Pass).where(Pass.template_id == template.id, Pass.status == "active")):
+            p.version += 1
+            p.updated_at = now
+            jobs.enqueue_push(session, p)
 
 
 def reject_version(version, note):
@@ -212,10 +222,11 @@ def create_pass(session, tenant, template_id, data, settings, signers, vault, se
     _check_data(template, data)
     if serial_number is None:
         serial_number = random_token(12)
+        while serial_taken(session, tenant, serial_number):
+            serial_number = random_token(12)
     elif not SERIAL_RE.match(str(serial_number)):
         raise ServiceError(422, "serial_number: 1-100 Zeichen, nur Buchstaben, Ziffern, Punkt, Minus, Unterstrich.")
-    elif session.scalars(select(Pass.id).where(Pass.tenant_id == tenant.id,
-                                               Pass.serial_number == serial_number)).first():
+    elif serial_taken(session, tenant, serial_number):
         raise ServiceError(409, f"Seriennummer {serial_number} ist bereits vergeben.")
     pass_obj = Pass(tenant=tenant, template=template, serial_number=str(serial_number), data=data,
                     download_token=random_token(24), auth_token_enc=vault.encrypt(random_token(24)),
@@ -224,6 +235,16 @@ def create_pass(session, tenant, template_id, data, settings, signers, vault, se
     session.add(pass_obj)
     session.flush()
     return pass_obj, True
+
+
+def serial_taken(session, tenant, serial):
+    """Apple adressiert Pässe über Pass Type ID + Seriennummer: eindeutig je Zertifikat, nicht nur je Firma."""
+    q = select(Pass.id).join(Tenant, Pass.tenant_id == Tenant.id).where(Pass.serial_number == str(serial))
+    if tenant.certificate_id:
+        q = q.where(Tenant.certificate_id == tenant.certificate_id)
+    else:
+        q = q.where(Pass.tenant_id == tenant.id)
+    return session.scalars(q).first() is not None
 
 
 def update_pass(session, pass_obj, data, settings, signers, vault):
@@ -242,14 +263,18 @@ def update_pass(session, pass_obj, data, settings, signers, vault):
         raise
     pass_obj.version += 1
     pass_obj.updated_at = utcnow()
+    jobs.enqueue_push(session, pass_obj)
+    jobs.emit(session, pass_obj.tenant_id, "pass.updated", jobs.pass_event_data(pass_obj))
     return pass_obj
 
 
-def void_pass(pass_obj):
+def void_pass(session, pass_obj):
     if pass_obj.status != "voided":
         pass_obj.status = "voided"
         pass_obj.version += 1
         pass_obj.updated_at = utcnow()
+        jobs.enqueue_push(session, pass_obj)
+        jobs.emit(session, pass_obj.tenant_id, "pass.voided", jobs.pass_event_data(pass_obj))
     return pass_obj
 
 

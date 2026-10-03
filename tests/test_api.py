@@ -191,7 +191,8 @@ class PassTests(ApiTestCase):
         self.assertEqual(pj["serialNumber"], p["serial_number"])
         self.assertEqual((pj["passTypeIdentifier"], pj["teamIdentifier"]), (PTI, TEAM))
         self.assertEqual(pj["organizationName"], "Beispiel GmbH")  # aus der Vorlage
-        self.assertNotIn("webServiceURL", pj)  # erst ab Phase 2
+        self.assertEqual(pj["webServiceURL"], "https://wallet.test/")
+        self.assertGreaterEqual(len(pj["authenticationToken"]), 16)
         with zipfile.ZipFile(BytesIO(r.content)) as zf:
             self.assertIn("signature", zf.namelist())
 

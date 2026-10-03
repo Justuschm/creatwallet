@@ -21,10 +21,11 @@ services:
       interval: 5s
       retries: 10
 
-  api:
+  api: &app
     build:
       context: ..
       dockerfile: deploy/Dockerfile
+    image: wallet-api:latest
     restart: unless-stopped
     depends_on:
       db:
@@ -37,6 +38,7 @@ services:
       WALLET_CERT_BACKEND: file
       WALLET_CERT_DIR: /data/certs
       WALLET_REQUIRE_TEMPLATE_APPROVAL: ${WALLET_REQUIRE_TEMPLATE_APPROVAL:-true}
+      WALLET_APPLE_WEB_SERVICE: ${WALLET_APPLE_WEB_SERVICE:-true}
       WEB_WORKERS: ${WEB_WORKERS:-2}
     volumes:
       - ./certs:/data/wwdr:ro
@@ -46,6 +48,17 @@ services:
       - /tmp
     security_opt:
       - no-new-privileges:true
+
+  # Hintergrund-Worker: Push an iPhones über Apple (APNs) und Webhooks an Firmen.
+  # Mehr Durchsatz: docker compose up -d --scale worker=3
+  worker:
+    <<: *app
+    depends_on:
+      api:
+        condition: service_healthy
+    command: ["python", "-m", "app", "worker"]
+    healthcheck:
+      disable: true
 
   caddy:
     image: caddy:2
