@@ -132,6 +132,7 @@ def render(request: Request, name, user=None, status_code=200, **ctx):
     messages = request.session.pop("flash", [])
     return templates.TemplateResponse(request, name, {
         "user": user, "csrf": csrf_token(request), "messages": messages, "ROLES": ROLES,
+        "approval": request.app.state.settings.require_template_approval,
         "can": (lambda p: can(user, p)) if user else (lambda p: False), **ctx}, status_code=status_code)
 
 

@@ -12,7 +12,7 @@ from datetime import timedelta
 import httpx
 from sqlalchemy import delete, select, update
 
-from . import apns, jobs, webhooks
+from . import apns, jobs, metrics, webhooks
 from .models import Device, Job, Pass, WebhookEndpoint, utcnow
 
 log = logging.getLogger("wallet.worker")
@@ -129,6 +129,7 @@ class Worker:
         failed, last_reason = [], ""
         for reg in regs:
             result, reason = self.pusher.send(p.tenant.certificate, reg.device.push_token)
+            metrics.APNS_PUSHES.labels(result).inc()
             if result == apns.GONE:
                 log.info("Gerät abgemeldet (%s) - Registrierung entfernt", reason)
                 jobs.emit(s, p.tenant_id, "pass.removed", jobs.pass_event_data(p))
@@ -158,6 +159,7 @@ class Worker:
             return
         ok, error = webhooks.deliver(self.http, ep.url, self.vault.decrypt(ep.secret_enc), payload["body"],
                                      allow_insecure=self.settings.allow_insecure_webhooks)
+        metrics.WEBHOOK_DELIVERIES.labels("ok" if ok else "error").inc()
         if not ok:
             raise Retry(error)
 

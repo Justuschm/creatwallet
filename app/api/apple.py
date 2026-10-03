@@ -14,7 +14,7 @@ from fastapi import APIRouter, Body, Depends, Request, Response
 from sqlalchemy import delete, func, select
 from sqlalchemy.orm import Session
 
-from .. import jobs, services
+from .. import jobs, metrics, services
 from ..models import Certificate, Device, Pass, Registration, Tenant, utcnow
 from .deps import ctx, get_session
 
@@ -73,6 +73,7 @@ def register(device_id: str, pti: str, serial: str, request: Request, body: dict
         session.commit()
         return Response(status_code=200)
     session.add(Registration(device_id=device.id, pass_id=p.id))
+    metrics.DEVICE_REGISTRATIONS.labels("register").inc()
     jobs.emit(session, p.tenant_id, "pass.installed", jobs.pass_event_data(p))
     session.commit()
     return Response(status_code=201)
@@ -92,6 +93,7 @@ def unregister(device_id: str, pti: str, serial: str, request: Request, session:
         if not session.scalar(select(func.count(Registration.id)).where(Registration.device_id == device_pk)):
             session.execute(delete(Device).where(Device.id == device_pk))
         jobs.emit(session, p.tenant_id, "pass.removed", jobs.pass_event_data(p))
+        metrics.DEVICE_REGISTRATIONS.labels("unregister").inc()
         session.commit()
     return Response(status_code=200)
 
@@ -126,7 +128,7 @@ def latest_pass(pti: str, serial: str, request: Request, session: Session = Depe
         except (TypeError, ValueError):
             pass
     settings, signers, vault = ctx(request)
-    data = services.build_pass(p, settings, signers, vault)
+    data = services.build_pass(p, settings, signers, vault, source="apple")
     return Response(data, media_type=PKPASS, headers={"Last-Modified": format_datetime(modified, usegmt=True),
                                                       "Cache-Control": "no-cache"})
 

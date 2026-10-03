@@ -34,8 +34,8 @@ class Settings:
     openbao_token: str = ""
     openbao_mount: str = "secret"
     openbao_prefix: str = "wallet/certs"
-    # Neue Vorlagen müssen vom Admin freigegeben werden, bevor Pässe ausgegeben werden.
-    require_template_approval: bool = True
+    # Vorlagen erst nach Freigabe durch den Admin nutzbar (Standard: aus - Firmen verantworten ihre Vorlagen selbst)
+    require_template_approval: bool = False
     # Apple-Web-Service (Updates) in die Pässe eintragen.
     apple_web_service: bool = True
     # APNs: Wallet-Pässe nutzen immer den Produktions-Host.
@@ -55,6 +55,11 @@ class Settings:
     dev_login: bool = False
     # Neue Firmen dürfen sich selbst registrieren (sonst nur per Einladung)
     allow_signup: bool = True
+    # Monitoring: Fehlerberichte an GlitchTip (Sentry-DSN), Zugang zu /metrics von außerhalb des internen Netzes
+    sentry_dsn: str = ""
+    environment: str = "production"
+    metrics_token: str = ""
+    worker_metrics_port: int = 0
     max_request_bytes: int = 15 * 1024 * 1024
     cors_origins: tuple = field(default_factory=tuple)
 
@@ -72,7 +77,7 @@ def get_settings():
         openbao_token=_env("OPENBAO_TOKEN", ""),
         openbao_mount=_env("OPENBAO_MOUNT", Settings.openbao_mount),
         openbao_prefix=_env("OPENBAO_PREFIX", Settings.openbao_prefix),
-        require_template_approval=_bool(_env("REQUIRE_TEMPLATE_APPROVAL", "true")),
+        require_template_approval=_bool(_env("REQUIRE_TEMPLATE_APPROVAL", "false")),
         apple_web_service=_bool(_env("APPLE_WEB_SERVICE", "true")),
         apns_host=_env("APNS_HOST", Settings.apns_host),
         apns_push_type=_env("APNS_PUSH_TYPE", ""),
@@ -84,5 +89,9 @@ def get_settings():
         admin_networks=tuple(n.strip() for n in (_env("ADMIN_NETWORKS", "") or "").split(",") if n.strip()),
         allow_signup=_bool(_env("ALLOW_SIGNUP", "true")),
         dev_login=_bool(_env("DEV_LOGIN", "false")),
+        sentry_dsn=_env("SENTRY_DSN", ""),
+        environment=_env("ENVIRONMENT", "production"),
+        metrics_token=_env("METRICS_TOKEN", ""),
+        worker_metrics_port=int(_env("WORKER_METRICS_PORT", "0") or 0),
         cors_origins=tuple(o for o in (_env("CORS_ORIGINS", "") or "").split(",") if o),
     )

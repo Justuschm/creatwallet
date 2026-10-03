@@ -21,6 +21,8 @@ CSRF_RE = re.compile(r'name="csrf" (?:value|content)="([^"]+)"')
 
 
 class WebCase(unittest.TestCase):
+    approval = True  # die meisten Tests prüfen den Ablauf mit Freigabe; Standard der Plattform ist ohne
+
     def setUp(self):
         self.tmp = tempfile.TemporaryDirectory()
         creds = make_credentials()
@@ -29,7 +31,8 @@ class WebCase(unittest.TestCase):
             fh.write(creds["wwdr"])
         self.settings = Settings(database_url="sqlite://", public_base_url="http://testserver",
                                  secret_key=Vault.generate_key(), wwdr_path=wwdr, dev_login=True,
-                                 cert_dir=os.path.join(self.tmp.name, "store"), allow_insecure_webhooks=True)
+                                 cert_dir=os.path.join(self.tmp.name, "store"), allow_insecure_webhooks=True,
+                                 require_template_approval=self.approval)
         self.engine = make_engine("sqlite://")
         Base.metadata.create_all(self.engine)
         self.Session = make_sessionmaker(self.engine)
@@ -206,6 +209,30 @@ class PortalFlowTests(WebCase):
     def first_template_id(self):
         with self.Session() as s:
             return s.query(Template).first().id
+
+
+class NoApprovalTests(WebCase):
+    approval = False
+
+    def test_saved_template_is_usable_at_once(self):
+        c = self.company()
+        self.activate()
+        self.post(c, "/portal/templates", {"name": "Karte", "base": "generic"})
+        with self.Session() as s:
+            t = s.query(Template).one()
+            self.assertIsNotNone(t.approved_version_id)
+            tid = t.id
+        data = c.get(f"/portal/templates/{tid}/editor/data").json()
+        data["pass"]["description"] = "Neu"
+        r = c.post(f"/portal/templates/{tid}/editor/save", json={"pass": data["pass"], "images": data["images"]},
+                   headers={"X-CSRF-Token": self.csrf(c)})
+        self.assertEqual(r.json(), {"version": 2, "status": "approved"})
+        r = self.post(c, "/portal/passes", {"template_id": tid})
+        self.assertIn("Pass ausgegeben", r.text)
+        admin = self.login("chef@plattform.test", admin=True)
+        page = admin.get("/admin/reviews").text
+        self.assertIn("Neue Firmen", page)
+        self.assertNotIn("Keine offenen Vorlagen", page)
 
 
 class TeamAndPermissionTests(WebCase):

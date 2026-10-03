@@ -10,7 +10,7 @@ from sqlalchemy.orm import object_session
 from creatwallet import validation as v
 from creatwallet.build import BuildError, build_pkpass
 
-from . import jobs, placeholders
+from . import jobs, metrics, placeholders
 from .certs import CertStoreError
 from .models import Pass, Template, TemplateFile, TemplateVersion, Tenant, utcnow
 from datetime import timedelta
@@ -186,7 +186,7 @@ def _require_issuable(tenant, template):
         raise ServiceError(409, "Die Vorlage ist noch nicht freigegeben.")
 
 
-def build_pass(pass_obj, settings, signers, vault):
+def build_pass(pass_obj, settings, signers, vault, source="api"):
     """Signierte .pkpass-Datei für einen Pass erzeugen (aktuelle freigegebene Vorlage)."""
     tenant, template = pass_obj.tenant, pass_obj.template
     _require_issuable(tenant, template)
@@ -199,9 +199,11 @@ def build_pass(pass_obj, settings, signers, vault):
     except CertStoreError as exc:
         raise ServiceError(503, f"Signieren nicht möglich: {exc}") from exc
     try:
-        pkpass, _ = build_pkpass(data, version.file_map(), signer, strict=True)
+        with metrics.Timer(metrics.SIGNING_SECONDS):
+            pkpass, _ = build_pkpass(data, version.file_map(), signer, strict=True)
     except BuildError as exc:
         raise ServiceError(422, "Der Pass ist mit diesen Daten ungültig.", exc.issues) from exc
+    metrics.PKPASS_BUILDS.labels(source).inc()
     return pkpass
 
 
@@ -237,9 +239,10 @@ def create_pass(session, tenant, template_id, data, settings, signers, vault, se
     pass_obj = Pass(tenant=tenant, template=template, serial_number=str(serial_number), data=data,
                     download_token=random_token(24), auth_token_enc=vault.encrypt(random_token(24)),
                     idempotency_key=idempotency_key)
-    build_pass(pass_obj, settings, signers, vault)  # prüft vollständig, bevor gespeichert wird
+    build_pass(pass_obj, settings, signers, vault, source="check")  # prüft vollständig, bevor gespeichert wird
     session.add(pass_obj)
     session.flush()
+    metrics.PASSES_ISSUED.inc()
     return pass_obj, True
 
 
@@ -263,10 +266,11 @@ def update_pass(session, pass_obj, data, settings, signers, vault):
     old = pass_obj.data
     pass_obj.data = merged
     try:
-        build_pass(pass_obj, settings, signers, vault)
+        build_pass(pass_obj, settings, signers, vault, source="check")
     except ServiceError:
         pass_obj.data = old
         raise
+    metrics.PASS_UPDATES.labels("update").inc()
     pass_obj.version += 1
     pass_obj.updated_at = utcnow()
     jobs.enqueue_push(session, pass_obj)
@@ -281,6 +285,7 @@ def void_pass(session, pass_obj):
         pass_obj.updated_at = utcnow()
         jobs.enqueue_push(session, pass_obj)
         jobs.emit(session, pass_obj.tenant_id, "pass.voided", jobs.pass_event_data(pass_obj))
+        metrics.PASS_UPDATES.labels("void").inc()
     return pass_obj
 
 

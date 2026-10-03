@@ -81,7 +81,7 @@ def pass_page(token: str, request: Request, session: Session = Depends(get_sessi
 def pass_file(token: str, request: Request, session: Session = Depends(get_session)):
     settings, signers, vault = ctx(request)
     p = _find(session, token)
-    data = services.build_pass(p, settings, signers, vault)
+    data = services.build_pass(p, settings, signers, vault, source="download")
     return Response(data, media_type=PKPASS, headers={
         "Content-Disposition": f'attachment; filename="{p.serial_number}.pkpass"',
         "Cache-Control": "no-store", "X-Content-Type-Options": "nosniff"})

@@ -29,10 +29,10 @@
     <div class="card">
       <div class="card-h"><h2>Versionen</h2><span class="hint">Pässe nutzen immer die aktive Version</span></div>
       <table>
-        <thead><tr><th>Version</th><th>Status</th><th>Erstellt</th><th>Notiz der Prüfung</th></tr></thead>
+        <thead><tr><th>Version</th><th>Status</th><th>Erstellt</th>{% if approval %}<th>Notiz der Prüfung</th>{% endif %}</tr></thead>
         <tbody>{% for v in t.versions | reverse %}
         <tr><td><b>{{ v.number }}</b>{% if t.approved_version and v.id == t.approved_version.id %} <span class="badge active">aktiv</span>{% endif %}</td>
-            <td>{{ ui.badge(v.status) }}</td><td class="small nowrap">{{ v.created_at | dt }}</td><td class="small">{{ v.review_note or "–" }}</td></tr>
+            <td>{{ ui.badge(v.status) }}</td><td class="small nowrap">{{ v.created_at | dt }}</td>{% if approval %}<td class="small">{{ v.review_note or "–" }}</td>{% endif %}</tr>
         {% endfor %}</tbody>
       </table>
     </div>
@@ -41,10 +41,10 @@
     <div class="card">
       <div class="card-h"><h2>Status</h2></div>
       <table class="kv"><tbody>
-        <tr><td>Aktiv</td><td>{% if t.approved_version %}Version {{ t.approved_version.number }}{% else %}<span class="muted">noch keine Freigabe</span>{% endif %}</td></tr>
+        <tr><td>Aktiv</td><td>{% if t.approved_version %}Version {{ t.approved_version.number }}{% else %}<span class="muted">{{ "noch keine Freigabe" if approval else "–" }}</span>{% endif %}</td></tr>
         <tr><td>Neueste</td><td>Version {{ latest.number }} {{ ui.badge(latest.status) }}</td></tr>
       </tbody></table>
-      <div class="card-b small muted">Jede gespeicherte Änderung wird geprüft. Nach der Freigabe bekommen auch alle bereits ausgegebenen Pässe das neue Design.</div>
+      <div class="card-b small muted">{% if approval %}Jede gespeicherte Änderung wird geprüft. Nach der Freigabe bekommen auch alle bereits ausgegebenen Pässe das neue Design.{% else %}Gespeicherte Änderungen gelten sofort – auch alle bereits ausgegebenen Pässe bekommen das neue Design.{% endif %}</div>
     </div>
     {% set problems = issues | selectattr("level", "in", ["error", "warning"]) | list %}
     <div class="card">

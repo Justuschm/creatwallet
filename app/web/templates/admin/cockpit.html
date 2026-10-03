@@ -6,7 +6,7 @@
 <div class="kpis">
   <div class="kpi"><div class="l">Aktive Firmen</div><div class="n">{{ by_status.get("active", 0) }}</div></div>
   <div class="kpi"><a href="/admin/reviews"><div class="l">Firmen in Prüfung</div><div class="n {{ 'warn' if by_status.get('pending') }}">{{ by_status.get("pending", 0) }}</div></a></div>
-  <div class="kpi"><a href="/admin/reviews"><div class="l">Vorlagen in Prüfung</div><div class="n {{ 'warn' if stats.pending_templates }}">{{ stats.pending_templates }}</div></a></div>
+  {% if approval %}<div class="kpi"><a href="/admin/reviews"><div class="l">Vorlagen in Prüfung</div><div class="n {{ 'warn' if stats.pending_templates }}">{{ stats.pending_templates }}</div></a></div>{% endif %}
   <div class="kpi"><div class="l">Aktive Pässe</div><div class="n">{{ stats.passes }}</div></div>
   <div class="kpi"><div class="l">Installationen</div><div class="n">{{ stats.devices }}</div></div>
   <div class="kpi"><a href="/admin/jobs"><div class="l">Jobs fehlgeschlagen</div><div class="n {{ 'err' if jobs.get('failed') }}">{{ jobs.get("failed", 0) }}</div></a></div>

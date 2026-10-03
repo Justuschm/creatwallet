@@ -1,0 +1,52 @@
+# Alarmregeln - sichtbar in Grafana unter "Alerting". Schwellen aus dem Masterplan.
+groups:
+  - name: wallet
+    rules:
+      - alert: ApiNichtErreichbar
+        expr: up{job="wallet-api"} == 0
+        for: 2m
+        labels: {severity: critical}
+        annotations:
+          summary: "Die API antwortet Prometheus nicht."
+
+      - alert: WorkerNichtErreichbar
+        expr: absent(up{job="wallet-worker"} == 1)
+        for: 5m
+        labels: {severity: critical}
+        annotations:
+          summary: "Kein Worker läuft - Pushes und Webhooks bleiben liegen."
+
+      - alert: HoheFehlerrate
+        expr: |
+          sum(rate(wallet_http_requests_total{status=~"5.."}[5m]))
+            / clamp_min(sum(rate(wallet_http_requests_total[5m])), 1e-9) > 0.01
+        for: 10m
+        labels: {severity: warning}
+        annotations:
+          summary: "Mehr als 1 % der Anfragen enden mit einem Serverfehler."
+
+      - alert: WarteschlangeStaut
+        expr: sum(wallet_jobs{status="pending"}) > 1000 or max(wallet_job_oldest_pending_seconds) > 900
+        for: 10m
+        labels: {severity: warning}
+        annotations:
+          summary: "Über 1000 wartende Jobs oder ein fälliger Job wartet länger als 15 Minuten."
+
+      - alert: JobsFehlgeschlagen
+        expr: increase(sum(wallet_jobs{status="failed"})[1h:5m]) > 0
+        labels: {severity: warning}
+        annotations:
+          summary: "Jobs sind endgültig fehlgeschlagen - Admin-Bereich unter Jobs prüfen."
+
+      - alert: PushFehlerSteigen
+        expr: sum(rate(wallet_apns_push_total{result=~"retry|error"}[15m])) / clamp_min(sum(rate(wallet_apns_push_total[15m])), 1e-9) > 0.1
+        for: 15m
+        labels: {severity: warning}
+        annotations:
+          summary: "Mehr als 10 % der Pushes an Apple schlagen fehl (Zertifikat oder Apple-Störung?)."
+
+      - alert: ZertifikatLaeuftAb
+        expr: min by (pass_type_identifier) (wallet_certificate_expiry_seconds) < 30 * 24 * 3600
+        labels: {severity: warning}
+        annotations:
+          summary: "Zertifikat {{ $labels.pass_type_identifier }} läuft in weniger als 30 Tagen ab."

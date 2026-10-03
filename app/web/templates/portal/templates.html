@@ -13,8 +13,9 @@
     <tbody>{% for t in templates %}
     <tr>
       <td><a href="/portal/templates/{{ t.id }}"><b>{{ t.name }}</b></a></td>
-      <td>{% if t.approved_version %}{{ ui.badge("approved") }}{% endif %}
-          {% if t.latest_version.status != "approved" %} {{ ui.badge(t.latest_version.status) }}{% endif %}</td>
+      <td>{% if approval %}{% if t.approved_version %}{{ ui.badge("approved") }}{% endif %}
+          {% if t.latest_version.status != "approved" %} {{ ui.badge(t.latest_version.status) }}{% endif %}
+          {% elif t.approved_version %}{{ ui.badge("active") }}{% else %}{{ ui.badge(t.latest_version.status) }}{% endif %}</td>
       <td>{{ t.latest_version.number }}</td>
       <td><div class="chips">{% for p in t.latest_version.pass_json | placeholders %}<code>{{ p }}</code>{% else %}<span class="muted">–</span>{% endfor %}</div></td>
       <td class="right small muted nowrap">{{ t.updated_at | dt }}</td>

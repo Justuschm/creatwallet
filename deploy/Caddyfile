@@ -8,6 +8,8 @@
 		Strict-Transport-Security "max-age=31536000; includeSubDomains"
 		-Server
 	}
+	# Messwerte nur im internen Netz (Prometheus fragt direkt api:8000)
+	respond /metrics 404
 	reverse_proxy api:8000
 }
 

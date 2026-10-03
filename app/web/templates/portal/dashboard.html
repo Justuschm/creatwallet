@@ -9,7 +9,7 @@
   </div>
 </div>
 
-{% if tenant.status == "pending" %}<div class="msg warn">Dein Konto wird gerade geprüft. Vorlagen kannst du schon gestalten; Pässe ausgeben geht nach der Freigabe.</div>
+{% if tenant.status == "pending" %}<div class="msg warn">Dein Konto wird gerade geprüft. Vorlagen kannst du schon gestalten; Pässe ausgeben geht, sobald dein Konto freigeschaltet ist.</div>
 {% elif tenant.status == "suspended" %}<div class="msg error">Dein Konto ist gesperrt{% if tenant.review_note %}: {{ tenant.review_note }}{% endif %}. Bereits ausgegebene Pässe bleiben gültig.</div>{% endif %}
 
 <div class="kpis">
@@ -32,9 +32,9 @@
             <td>{{ ui.badge(p.status) }}</td><td class="right small muted nowrap">{{ p.created_at | dt }}</td></tr>
         {% endfor %}</tbody>
       </table>
-      {% else %}{{ ui.empty("Noch keine Pässe ausgegeben.", "Sobald eine Vorlage freigegeben ist, kannst du Pässe ausgeben.") }}{% endif %}
+      {% else %}{{ ui.empty("Noch keine Pässe ausgegeben.", "Lege eine Vorlage an und gib den ersten Pass aus.") }}{% endif %}
     </div>
-    {% if pending %}
+    {% if pending and approval %}
     <div class="card">
       <div class="card-h"><h2>Wartet auf Freigabe</h2><span class="hint">Wir prüfen jede neue Version vor der Nutzung</span></div>
       <table><tbody>{% for t in pending %}<tr><td><a href="/portal/templates/{{ t.id }}">{{ t.name }}</a></td><td>Version {{ t.latest_version.number }}</td><td class="right">{{ ui.badge("pending") }}</td></tr>{% endfor %}</tbody></table>
@@ -47,7 +47,7 @@
       <table class="kv"><tbody>
         <tr><td>Name im Pass</td><td>{{ tenant.organization_name }}</td></tr>
         <tr><td>Tarif</td><td>{{ tenant.plan }}</td></tr>
-        <tr><td>Zertifikat</td><td>{% if tenant.certificate %}<span class="small mono">{{ tenant.certificate.pass_type_identifier }}</span>{% else %}<span class="muted">wird bei der Freigabe hinterlegt</span>{% endif %}</td></tr>
+        <tr><td>Zertifikat</td><td>{% if tenant.certificate %}<span class="small mono">{{ tenant.certificate.pass_type_identifier }}</span>{% else %}<span class="muted">wird bei der Freischaltung hinterlegt</span>{% endif %}</td></tr>
       </tbody></table>
     </div>
     <div class="card">
@@ -55,7 +55,7 @@
       <div class="card-b">
         <ol class="steps">
           <li><a href="/portal/templates">Vorlage gestalten</a> und mit einem Test-Pass auf dem eigenen iPhone prüfen.</li>
-          <li>Nach der Freigabe Pässe <a href="/portal/passes/new">einzeln ausgeben</a> oder per <a href="/portal/developers">API</a> aus deinem System.</li>
+          <li>Pässe <a href="/portal/passes/new">einzeln ausgeben</a> oder per <a href="/portal/developers">API</a> aus deinem System.</li>
           <li>Deinen Kunden den Link zur Pass-Seite schicken oder den Button auf deiner Website einbinden.</li>
         </ol>
       </div>

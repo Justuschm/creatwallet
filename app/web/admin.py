@@ -25,8 +25,9 @@ def render(request, name, user, **ctx):
     """Wie core.render, zusätzlich die Zahl offener Prüfungen für die Navigation."""
     session = request.app.state.sessionmaker()
     try:
-        pending = (session.scalar(select(func.count(TemplateVersion.id)).where(TemplateVersion.status == "pending"))
-                   + session.scalar(select(func.count(Tenant.id)).where(Tenant.status == "pending")))
+        pending = session.scalar(select(func.count(Tenant.id)).where(Tenant.status == "pending"))
+        if request.app.state.settings.require_template_approval:
+            pending += session.scalar(select(func.count(TemplateVersion.id)).where(TemplateVersion.status == "pending"))
     finally:
         session.close()
     return _render(request, name, user, nav_pending=pending, **ctx)

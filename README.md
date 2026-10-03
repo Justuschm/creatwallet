@@ -292,7 +292,7 @@ KEY=wk_…
 # 1. Vorlage aus einer Startvorlage anlegen (oder eigene pass.json + Bilder als base64 senden)
 curl -s -X POST localhost:8000/api/v1/templates -H "Authorization: Bearer $KEY" \
      -H 'Content-Type: application/json' -d '{"name": "Konzert", "base_template": "posterEventTicket"}'
-# 2. Freigabe durch dich
+# 2. Nur wenn WALLET_REQUIRE_TEMPLATE_APPROVAL=true: Freigabe durch dich
 python -m app pending && python -m app approve <VORLAGEN-ID>
 # 3. Pass ausgeben - page_url an den Endkunden geben
 curl -s -X POST localhost:8000/api/v1/passes -H "Authorization: Bearer $KEY" \
@@ -331,6 +331,18 @@ Audit-Log. Der Login läuft über **Authentik** (OpenID Connect): Mitglieder der
 `wallet-admins` sind Plattform-Admins. `deploy/authentik/wallet.yaml` richtet beim Start alles ein –
 Anbindung an die Plattform, Admin-Gruppe, Registrierung für neue Firmen und Zwei-Faktor-Pflicht.
 
+**Monitoring:** `deploy/docker-compose.monitoring.yml` ergänzt Prometheus (Messwerte und 7 Alarmregeln),
+Grafana (fertiges Dashboard „Wallet-Pass-Plattform“ mit Messwerten und Fehler-Logs), Loki mit Grafana Alloy
+(Logs aller Container), Uptime Kuma (Erreichbarkeit, Statusseite) und GlitchTip (Fehlerberichte).
+Starten: `docker compose -f docker-compose.yml -f docker-compose.monitoring.yml up -d`. Die Oberflächen
+laufen nur auf `127.0.0.1` des Servers (Zugriff per SSH-Tunnel oder VPN, siehe Kopf der Datei).
+Die API liefert Messwerte unter `/metrics` (nur aus dem internen Netz oder mit `WALLET_METRICS_TOKEN`)
+und meldet unter `/readyz`, ob die Datenbank erreichbar ist.
+
+**Vorlagen-Freigabe:** standardmäßig aus – Firmen speichern Vorlagen und nutzen sie sofort. Mit
+`WALLET_REQUIRE_TEMPLATE_APPROVAL=true` muss jede neue Version erst im Admin-Bereich freigegeben werden.
+Neue *Firmen* schaltest du immer selbst frei.
+
 Lokal ohne Authentik: `WALLET_DEV_LOGIN=true` aktiviert einen Entwickler-Login unter `/auth/dev-login`
 (**nie in Produktion**).
 
@@ -346,7 +358,7 @@ Authentik, Caddy mit automatischem HTTPS für Plattform- und Login-Domain) und `
 | `WALLET_SECRET_KEY` | Fernet-Schlüssel für gespeicherte Geheimnisse |
 | `WALLET_WWDR` | Apple-WWDR-Zertifikat |
 | `WALLET_CERT_BACKEND` | `file` (verschlüsselt in `WALLET_CERT_DIR`) oder `openbao` (`WALLET_OPENBAO_ADDR`, `…_TOKEN`) |
-| `WALLET_REQUIRE_TEMPLATE_APPROVAL` | `true`: Vorlagen erst nach Freigabe nutzbar |
+| `WALLET_REQUIRE_TEMPLATE_APPROVAL` | `true`: Vorlagen erst nach Freigabe durch den Admin nutzbar (Standard `false`) |
 | `WALLET_APPLE_WEB_SERVICE` | `true` (Standard) trägt den Update-Dienst in die Pässe ein |
 | `WALLET_APNS_PUSH_TYPE` | optionaler Header `apns-push-type` für APNs (Standard: nicht senden) |
 | `WALLET_ALLOW_INSECURE_WEBHOOKS` | nur lokal: Webhooks an `http://` und interne Adressen erlauben |
@@ -355,6 +367,8 @@ Authentik, Caddy mit automatischem HTTPS für Plattform- und Login-Domain) und `
 | `WALLET_ADMIN_NETWORKS` | Admin-Bereich nur aus diesen Netzen (CIDR, kommagetrennt), z. B. dein VPN |
 | `WALLET_ALLOW_SIGNUP` | neue Firmen dürfen sich selbst registrieren (Standard `true`) |
 | `WALLET_DEV_LOGIN` | nur lokal: Anmeldung ohne Authentik |
+| `WALLET_SENTRY_DSN` | Fehlerberichte an GlitchTip (DSN aus dem GlitchTip-Projekt) |
+| `WALLET_METRICS_TOKEN` | Zugriff auf `/metrics` von außerhalb des internen Netzes |
 
 Für den Livebetrieb den Button auf der Download-Seite durch Apples offizielles
 „Add to Apple Wallet“-Badge ersetzen (Apple-Richtlinien).

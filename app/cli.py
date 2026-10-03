@@ -164,8 +164,12 @@ def cmd_worker(args):
     from .certs import make_store
     from .worker import Worker
 
+    from .metrics import init_error_reporting, start_worker_metrics
+
     logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s: %(message)s")
     settings = get_settings()
+    init_error_reporting(settings.sentry_dsn, settings.environment, "worker")
+    start_worker_metrics(settings.worker_metrics_port)
     Session = make_sessionmaker(make_engine(settings.database_url))
     store = make_store(settings)
     worker = Worker(Session, settings, Vault(settings.secret_key),

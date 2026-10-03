@@ -20,7 +20,7 @@
       <div class="card-h"><h2>Vorlagen</h2></div>
       {% if templates %}<table><thead><tr><th>Name</th><th>Version</th><th>Status</th><th></th></tr></thead>
         <tbody>{% for tpl in templates %}<tr><td>{{ tpl.name }}</td><td>{{ tpl.latest_version.number }}</td><td>{{ ui.badge(tpl.latest_version.status) }}</td>
-          <td class="right">{% if tpl.latest_version.status == "pending" %}<a class="btn small primary" href="/admin/reviews/{{ tpl.latest_version.id }}">Prüfen</a>{% endif %}</td></tr>{% endfor %}</tbody></table>
+          <td class="right">{% if approval and tpl.latest_version.status == "pending" %}<a class="btn small primary" href="/admin/reviews/{{ tpl.latest_version.id }}">Prüfen</a>{% endif %}</td></tr>{% endfor %}</tbody></table>
       {% else %}{{ ui.empty("Noch keine Vorlagen.") }}{% endif %}
     </div>
     <div class="card">
