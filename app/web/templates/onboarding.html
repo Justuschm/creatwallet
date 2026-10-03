@@ -1,17 +1,17 @@
-{% extends "base.html" %}
+{% extends "base.html" %}{% import "_ui.html" as ui %}
 {% block body %}
-<div class="center"><div class="card">
+<div class="center"><div class="card"><div class="card-b">
   {% for kind, text in messages %}<div class="msg {{ kind }}">{{ text }}</div>{% endfor %}
   <h1>Firma einrichten</h1>
   {% if signup %}
-  <p class="lead">Ein Schritt noch: Wer gibt die Pässe aus? Nach einer kurzen Prüfung schalten wir das Konto frei.</p>
+  <p class="muted">Ein Schritt noch: Wer gibt die Pässe aus? Nach einer kurzen Prüfung schalten wir das Konto frei.</p>
   <form method="post" action="/portal/onboarding">
     <input type="hidden" name="csrf" value="{{ csrf }}">
     <label class="f">Firmenname *<input type="text" name="name" required maxlength="200"></label>
     <label class="f">Name im Pass (falls anders)<input type="text" name="organization_name" maxlength="200" placeholder="z. B. Kino am Markt"></label>
     <label class="f">Anschrift<textarea name="address" maxlength="1000"></textarea></label>
     <label class="f">USt-ID<input type="text" name="vat_id" maxlength="40" placeholder="DE123456789"></label>
-    <label class="f" style="flex-direction:row;align-items:flex-start;gap:8px;color:var(--text)">
+    <label class="check">
       <input type="checkbox" name="terms" value="true" required> Ich akzeptiere die AGB und den Vertrag zur Auftragsverarbeitung.</label>
     <button class="primary">Firma anlegen</button>
   </form>
@@ -20,5 +20,5 @@
      oder öffne den Einladungslink aus deiner E-Mail.</p>
   {% endif %}
   <p class="small muted">Angemeldet als {{ user.email }} · <a href="/auth/logout">Abmelden</a>{% if user.is_admin %} · <a href="/admin">Admin-Bereich</a>{% endif %}</p>
-</div></div>
+</div></div></div>
 {% endblock %}

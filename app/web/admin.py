@@ -14,10 +14,22 @@ from ..api.deps import ctx, get_session
 from ..certs import CertStoreError, import_certificate
 from ..models import AuditLog, Certificate, Job, Pass, Registration, TemplateVersion, Tenant, User, utcnow
 from ..services import ServiceError
-from .core import admin_user, audit, check_csrf, flash, render
+from .core import admin_user, audit, check_csrf, flash
+from .core import render as _render
 
 router = APIRouter(prefix="/admin", include_in_schema=False, dependencies=[Depends(check_csrf)])
 PLANS = ("free", "starter", "business", "pro", "enterprise")
+
+
+def render(request, name, user, **ctx):
+    """Wie core.render, zusätzlich die Zahl offener Prüfungen für die Navigation."""
+    session = request.app.state.sessionmaker()
+    try:
+        pending = (session.scalar(select(func.count(TemplateVersion.id)).where(TemplateVersion.status == "pending"))
+                   + session.scalar(select(func.count(Tenant.id)).where(Tenant.status == "pending")))
+    finally:
+        session.close()
+    return _render(request, name, user, nav_pending=pending, **ctx)
 
 
 def back(url, request=None, message=None, kind="ok"):

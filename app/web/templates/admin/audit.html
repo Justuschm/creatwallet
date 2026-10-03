@@ -1,14 +1,14 @@
-{% extends "base.html" %}
+{% extends "base.html" %}{% import "_ui.html" as ui %}
 {% set area = "admin" %}{% set active = "audit" %}{% set title = "Audit-Log" %}
 {% block content %}
-<h1>Audit-Log</h1>
-<p class="lead">Alle Admin-Aktionen und wichtigen Änderungen in den Firmenkonten.</p>
+<div class="page-head"><div><h1>Audit-Log</h1><div class="sub">Admin-Aktionen und wichtige Änderungen in den Firmenkonten. Nicht löschbar.</div></div></div>
 <div class="card">
-  <table>
-    <tr><th>Zeit</th><th>Wer</th><th>Aktion</th><th>Firma</th><th>Details</th></tr>
-    {% for e in rows %}<tr><td class="small">{{ e.created_at | dt }}</td><td class="small">{{ e.actor }}</td><td><code>{{ e.action }}</code></td>
-      <td class="small">{{ names.get(e.tenant_id, "–") }}</td><td class="small">{{ e.details | tojson if e.details else "" }}</td></tr>{% else %}<tr><td class="muted">Noch nichts.</td></tr>{% endfor %}
-  </table>
-  <p class="small">{% if page > 1 %}<a href="?page={{ page - 1 }}">← neuere</a>{% endif %} {% if more %}<a href="?page={{ page + 1 }}">ältere →</a>{% endif %}</p>
+  {% if rows %}
+  <table><thead><tr><th>Zeit</th><th>Wer</th><th>Aktion</th><th>Firma</th><th>Details</th></tr></thead>
+    <tbody>{% for e in rows %}<tr><td class="small nowrap">{{ e.created_at | dt }}</td><td class="small">{{ e.actor }}</td><td><code>{{ e.action }}</code></td>
+      <td class="small">{{ names.get(e.tenant_id, "–") }}</td><td class="small muted mono">{{ e.details | tojson if e.details else "" }}</td></tr>{% endfor %}</tbody></table>
+  <div class="toolbar" style="border-top:1px solid var(--line);border-bottom:0;justify-content:space-between">
+    <span>{% if page > 1 %}<a href="?page={{ page - 1 }}">← Neuere</a>{% endif %}</span><span class="small muted">Seite {{ page }}</span><span>{% if more %}<a href="?page={{ page + 1 }}">Ältere →</a>{% endif %}</span></div>
+  {% else %}{{ ui.empty("Noch keine Einträge.") }}{% endif %}
 </div>
 {% endblock %}

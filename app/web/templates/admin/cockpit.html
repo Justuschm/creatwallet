@@ -1,19 +1,32 @@
-{% extends "base.html" %}
+{% extends "base.html" %}{% import "_ui.html" as ui %}
 {% set area = "admin" %}{% set active = "cockpit" %}{% set title = "Cockpit" %}
 {% block content %}
-<h1>Cockpit</h1>
-<p class="lead">Zustand der Plattform auf einen Blick.</p>
-<div class="grid">
-  <div class="kpi"><div class="n">{{ by_status.get("active", 0) }}</div><div class="l">aktive Firmen</div></div>
-  <div class="kpi"><div class="n">{{ by_status.get("pending", 0) }}</div><div class="l"><a href="/admin/reviews">Firmen in Prüfung</a></div></div>
-  <div class="kpi"><div class="n">{{ stats.pending_templates }}</div><div class="l"><a href="/admin/reviews">Vorlagen in Prüfung</a></div></div>
-  <div class="kpi"><div class="n">{{ stats.passes }}</div><div class="l">aktive Pässe</div></div>
-  <div class="kpi"><div class="n">{{ stats.devices }}</div><div class="l">Installationen</div></div>
-  <div class="kpi"><div class="n">{{ jobs.get("pending", 0) }} / {{ jobs.get("failed", 0) }}</div><div class="l"><a href="/admin/jobs">Jobs wartend / fehlgeschlagen</a></div></div>
+<div class="page-head"><div><h1>Cockpit</h1><div class="sub">Zustand der Plattform auf einen Blick · {{ now | dt }} UTC</div></div>
+  <div class="actions"><a class="btn primary" href="/admin/reviews">{{ ui.icon("check", 16) }} Prüfungen öffnen</a></div></div>
+<div class="kpis">
+  <div class="kpi"><div class="l">Aktive Firmen</div><div class="n">{{ by_status.get("active", 0) }}</div></div>
+  <div class="kpi"><a href="/admin/reviews"><div class="l">Firmen in Prüfung</div><div class="n {{ 'warn' if by_status.get('pending') }}">{{ by_status.get("pending", 0) }}</div></a></div>
+  <div class="kpi"><a href="/admin/reviews"><div class="l">Vorlagen in Prüfung</div><div class="n {{ 'warn' if stats.pending_templates }}">{{ stats.pending_templates }}</div></a></div>
+  <div class="kpi"><div class="l">Aktive Pässe</div><div class="n">{{ stats.passes }}</div></div>
+  <div class="kpi"><div class="l">Installationen</div><div class="n">{{ stats.devices }}</div></div>
+  <div class="kpi"><a href="/admin/jobs"><div class="l">Jobs fehlgeschlagen</div><div class="n {{ 'err' if jobs.get('failed') }}">{{ jobs.get("failed", 0) }}</div></a></div>
 </div>
-<div class="card"><h2>Zertifikate, die in 60 Tagen ablaufen</h2>
-  {% if expiring %}<table>{% for c in expiring %}<tr><td><code>{{ c.pass_type_identifier }}</code></td><td>{{ c.expires_at | d }}</td></tr>{% endfor %}</table>
-  {% else %}<p class="muted">Keine.</p>{% endif %}
+<div class="cols-2">
+  <div class="card">
+    <div class="card-h"><h2>Zertifikate, die in 60 Tagen ablaufen</h2><a class="small" href="/admin/certificates">Alle →</a></div>
+    {% if expiring %}<table><thead><tr><th>Pass Type ID</th><th class="right">Gültig bis</th></tr></thead>
+      <tbody>{% for c in expiring %}<tr><td class="mono small">{{ c.pass_type_identifier }}</td><td class="right">{{ c.expires_at | d }}</td></tr>{% endfor %}</tbody></table>
+    {% else %}{{ ui.empty("Keine Zertifikate laufen bald ab.") }}{% endif %}
+  </div>
+  <div class="card">
+    <div class="card-h"><h2>Warteschlange</h2><a class="small" href="/admin/jobs?status=pending">Jobs →</a></div>
+    <table class="kv"><tbody>
+      <tr><td>Wartend</td><td>{{ jobs.get("pending", 0) }}</td></tr>
+      <tr><td>Läuft</td><td>{{ jobs.get("running", 0) }}</td></tr>
+      <tr><td>Erledigt (7 Tage)</td><td>{{ jobs.get("done", 0) }}</td></tr>
+      <tr><td>Fehlgeschlagen</td><td>{{ jobs.get("failed", 0) }}</td></tr>
+      <tr><td>Gesperrte Firmen</td><td>{{ by_status.get("suspended", 0) }}</td></tr>
+    </tbody></table>
+  </div>
 </div>
-{% if by_status.get("suspended") %}<p class="small muted">{{ by_status.get("suspended") }} Firma/Firmen gesperrt.</p>{% endif %}
 {% endblock %}

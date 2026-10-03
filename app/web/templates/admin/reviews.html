@@ -1,22 +1,21 @@
-{% extends "base.html" %}
+{% extends "base.html" %}{% import "_ui.html" as ui %}
 {% set area = "admin" %}{% set active = "reviews" %}{% set title = "Prüfungen" %}
 {% block content %}
-<h1>Prüfungen</h1>
-<p class="lead">Neue Firmen und geänderte Vorlagen. Erst nach Freigabe werden Pässe damit signiert.</p>
-<div class="card"><h2>Neue Firmen</h2>
-  {% if new_tenants %}
-  <table>
-    <tr><th>Firma</th><th>Kontakt</th><th>USt-ID</th><th>Registriert</th></tr>
-    {% for t in new_tenants %}<tr><td><a href="/admin/tenants/{{ t.id }}">{{ t.name }}</a></td><td class="small">{{ t.contact_email }}</td><td class="small">{{ t.vat_id or "–" }}</td><td class="small">{{ t.created_at | dt }}</td></tr>{% endfor %}
-  </table>
-  {% else %}<p class="muted">Keine offenen Firmen.</p>{% endif %}
-</div>
-<div class="card"><h2>Vorlagen</h2>
-  {% if versions %}
-  <table>
-    <tr><th>Vorlage</th><th>Firma</th><th>Version</th><th>Eingereicht</th></tr>
-    {% for v in versions %}<tr><td><a href="/admin/reviews/{{ v.id }}">{{ v.template.name }}</a></td><td class="small">{{ names.get(v.template.tenant_id, "–") }}</td><td>{{ v.number }}</td><td class="small">{{ v.created_at | dt }}</td></tr>{% endfor %}
-  </table>
-  {% else %}<p class="muted">Keine offenen Vorlagen.</p>{% endif %}
+<div class="page-head"><div><h1>Prüfungen</h1><div class="sub">Erst nach Freigabe werden Pässe mit deinem Zertifikat signiert.</div></div></div>
+<div class="cols-2">
+  <div class="card">
+    <div class="card-h"><h2>Neue Firmen</h2><span class="hint">{{ new_tenants | length }} offen</span></div>
+    {% if new_tenants %}
+    <table><thead><tr><th>Firma</th><th>USt-ID</th><th class="right">Registriert</th></tr></thead>
+      <tbody>{% for t in new_tenants %}<tr><td><a href="/admin/tenants/{{ t.id }}"><b>{{ t.name }}</b></a><div class="small muted">{{ t.contact_email }}</div></td><td class="small">{{ t.vat_id or "–" }}</td><td class="right small nowrap">{{ t.created_at | dt }}</td></tr>{% endfor %}</tbody></table>
+    {% else %}{{ ui.empty("Keine offenen Firmen.") }}{% endif %}
+  </div>
+  <div class="card">
+    <div class="card-h"><h2>Vorlagen</h2><span class="hint">{{ versions | length }} offen</span></div>
+    {% if versions %}
+    <table><thead><tr><th>Vorlage</th><th>Firma</th><th class="right">Eingereicht</th><th></th></tr></thead>
+      <tbody>{% for v in versions %}<tr><td><b>{{ v.template.name }}</b> <span class="muted">v{{ v.number }}</span></td><td>{{ names.get(v.template.tenant_id, "–") }}</td><td class="right small nowrap">{{ v.created_at | dt }}</td><td class="right"><a class="btn small primary" href="/admin/reviews/{{ v.id }}">Prüfen</a></td></tr>{% endfor %}</tbody></table>
+    {% else %}{{ ui.empty("Keine offenen Vorlagen.") }}{% endif %}
+  </div>
 </div>
 {% endblock %}

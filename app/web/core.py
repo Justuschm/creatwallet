@@ -18,6 +18,24 @@ templates.env.filters["placeholders"] = find_placeholders
 templates.env.filters["dt"] = lambda d: d.strftime("%d.%m.%Y %H:%M") if d else "–"
 templates.env.filters["d"] = lambda d: d.strftime("%d.%m.%Y") if d else "–"
 
+
+def _preview(data, n=3):
+    """Erste Werte eines Passes kurz anzeigen; ISO-Datumswerte lesbar."""
+    from datetime import datetime
+
+    out = []
+    for value in list((data or {}).values())[:n]:
+        if isinstance(value, str) and len(value) >= 16 and value[4] == "-" and value[10] == "T":
+            try:
+                value = datetime.fromisoformat(value).strftime("%d.%m.%Y %H:%M")
+            except ValueError:
+                pass
+        out.append(str(value))
+    return " · ".join(out) or "–"
+
+
+templates.env.filters["preview"] = _preview
+
 ROLES = {
     "owner": "Inhaber",
     "admin": "Admin",

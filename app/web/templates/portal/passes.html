@@ -1,31 +1,39 @@
-{% extends "base.html" %}
+{% extends "base.html" %}{% import "_ui.html" as ui %}
 {% set active = "passes" %}{% set title = "Pässe" %}
 {% block content %}
-<h1>Pässe</h1>
-<p class="lead">Alle ausgegebenen Pässe, neueste zuerst.</p>
+<div class="page-head">
+  <div><h1>Pässe</h1><div class="sub">Alle ausgegebenen Pässe, neueste zuerst.</div></div>
+  {% if can("passes") %}<div class="actions"><a class="btn primary" href="/portal/passes/new">{{ ui.icon("plus", 16) }} Pass ausgeben</a></div>{% endif %}
+</div>
+
 <div class="card">
-  <form method="get" class="row">
-    <label class="f">Suche (Seriennummer oder Inhalt)<input type="search" name="q" value="{{ q }}"></label>
-    <label class="f">Vorlage<select name="template_id"><option value="">alle</option>{% for t in templates %}<option value="{{ t.id }}" {{ "selected" if t.id == template_id }}>{{ t.name }}</option>{% endfor %}</select></label>
-    <div class="shrink" style="margin-bottom:12px"><button>Suchen</button>
-      {% if can("passes") %}<a class="btn primary" href="/portal/passes/new">Pass ausgeben</a>{% endif %}</div>
+  <form method="get" class="toolbar">
+    <input type="search" name="q" value="{{ q }}" placeholder="Seriennummer, Name, Ticketnummer …" aria-label="Suche">
+    <select name="template_id" aria-label="Vorlage"><option value="">Alle Vorlagen</option>{% for t in templates %}<option value="{{ t.id }}" {{ "selected" if t.id == template_id }}>{{ t.name }}</option>{% endfor %}</select>
+    <button>{{ ui.icon("search", 15) }} Suchen</button>
+    {% if q or template_id %}<a class="small" href="/portal/passes">Filter zurücksetzen</a>{% endif %}
   </form>
   {% if items %}
   <table>
-    <tr><th>Seriennummer</th><th>Vorlage</th><th>Inhalt</th><th>Status</th><th>Geräte</th><th>Erstellt</th></tr>
-    {% for p in items %}
+    <thead><tr><th>Seriennummer</th><th>Vorlage</th><th>Inhalt</th><th>Status</th><th class="right">Geräte</th><th class="right">Version</th><th class="right">Erstellt</th></tr></thead>
+    <tbody>{% for p in items %}
     <tr>
-      <td><a href="/portal/passes/{{ p.id }}"><code>{{ p.serial_number }}</code></a></td>
-      <td class="small">{{ p.template.name }}</td>
-      <td class="small">{% for k, val in p.data.items() %}{% if loop.index <= 3 %}{{ val }}{{ " · " if not loop.last and loop.index < 3 }}{% endif %}{% endfor %}</td>
-      <td><span class="badge {{ p.status }}">{{ "aktiv" if p.status == "active" else "gesperrt" }}</span></td>
-      <td>{{ p.registrations | length }}</td>
-      <td class="small muted">{{ p.created_at | dt }}</td>
+      <td><a class="mono" href="/portal/passes/{{ p.id }}">{{ p.serial_number }}</a></td>
+      <td>{{ p.template.name }}</td>
+      <td class="small">{{ p.data | preview }}</td>
+      <td>{{ ui.badge(p.status) }}</td>
+      <td class="right">{{ p.registrations | length }}</td>
+      <td class="right">{{ p.version }}</td>
+      <td class="right small muted nowrap">{{ p.created_at | dt }}</td>
     </tr>
-    {% endfor %}
+    {% endfor %}</tbody>
   </table>
-  <p class="small">{% if page > 1 %}<a href="?q={{ q | urlencode }}&template_id={{ template_id }}&page={{ page - 1 }}">← neuere</a>{% endif %}
-     {% if more %} <a href="?q={{ q | urlencode }}&template_id={{ template_id }}&page={{ page + 1 }}">ältere →</a>{% endif %}</p>
-  {% else %}<p class="muted">Keine Pässe gefunden.</p>{% endif %}
+  {% if page > 1 or more %}
+  <div class="toolbar" style="border-top:1px solid var(--line);border-bottom:0;justify-content:space-between">
+    <span>{% if page > 1 %}<a href="?q={{ q | urlencode }}&template_id={{ template_id }}&page={{ page - 1 }}">← Neuere</a>{% endif %}</span>
+    <span class="small muted">Seite {{ page }}</span>
+    <span>{% if more %}<a href="?q={{ q | urlencode }}&template_id={{ template_id }}&page={{ page + 1 }}">Ältere →</a>{% endif %}</span>
+  </div>{% endif %}
+  {% else %}{{ ui.empty("Keine Pässe gefunden.", "Suchbegriff ändern oder einen Pass ausgeben.") }}{% endif %}
 </div>
 {% endblock %}

@@ -1,66 +1,91 @@
-{% extends "base.html" %}
+{% extends "base.html" %}{% import "_ui.html" as ui %}
 {% set active = "developers" %}{% set title = "Einbinden" %}
 {% block content %}
-<h1>Einbinden</h1>
-<p class="lead">Pässe aus deinem eigenen System erzeugen: API-Schlüssel, Webhooks und Code für deine Website.
-   Vollständige Doku: <a href="/docs" target="_blank" rel="noopener">API-Referenz</a>.</p>
-
-{% if new_key %}<div class="msg warn">Neuer API-Schlüssel – jetzt kopieren, er wird nicht noch einmal angezeigt:<div class="secret">{{ new_key }}</div></div>{% endif %}
-{% if new_secret %}<div class="msg warn">Geheimnis zum Prüfen der Webhook-Signatur – jetzt kopieren:<div class="secret">{{ new_secret }}</div></div>{% endif %}
-
-<div class="card"><h2>API-Schlüssel</h2>
-  {% if keys %}
-  <table>
-    <tr><th>Name</th><th>Schlüssel</th><th>Erstellt</th><th>Zuletzt benutzt</th><th></th></tr>
-    {% for k in keys %}
-    <tr><td>{{ k.name }}</td><td><code>wk_{{ k.prefix }}_…</code></td><td class="small">{{ k.created_at | d }}</td>
-        <td class="small">{{ k.last_used_at | dt }}</td>
-        <td>{% if k.revoked_at %}<span class="badge err">widerrufen</span>{% elif can("keys") %}
-          <form class="inline" method="post" action="/portal/keys/{{ k.id }}/revoke" onsubmit="return confirm('Schlüssel widerrufen? Systeme, die ihn nutzen, funktionieren dann nicht mehr.')">
-          <input type="hidden" name="csrf" value="{{ csrf }}"><button class="small danger">Widerrufen</button></form>{% endif %}</td></tr>
-    {% endfor %}
-  </table>
-  {% else %}<p class="muted">Noch keine Schlüssel.</p>{% endif %}
-  {% if can("keys") %}
-  <form method="post" action="/portal/keys" class="row" style="margin-top:12px">
-    <input type="hidden" name="csrf" value="{{ csrf }}">
-    <label class="f">Name<input type="text" name="name" maxlength="100" placeholder="z. B. Webshop"></label>
-    <div class="shrink" style="margin-bottom:12px"><button class="primary">Schlüssel erzeugen</button></div>
-  </form>{% endif %}
+<div class="page-head">
+  <div><h1>Einbinden</h1><div class="sub">Pässe aus deinem eigenen System erzeugen und Ereignisse empfangen.</div></div>
+  <div class="actions"><a class="btn" href="/docs" target="_blank" rel="noopener">{{ ui.icon("external", 16) }} API-Referenz</a></div>
 </div>
 
-<div class="card"><h2>Pass per API ausgeben</h2>
+{% if new_key %}<div class="msg warn"><b>Neuer API-Schlüssel</b> – jetzt kopieren, er wird nicht noch einmal angezeigt:<div class="secret">{{ new_key }}</div></div>{% endif %}
+{% if new_secret %}<div class="msg warn"><b>Webhook-Geheimnis</b> – jetzt kopieren, zum Prüfen der Signatur:<div class="secret">{{ new_secret }}</div></div>{% endif %}
+
+<div class="cols-2">
+  <div class="stack">
+    <div class="card">
+      <div class="card-h"><h2>API-Schlüssel</h2>{% if can("keys") %}<button class="small primary" data-open="new-key">{{ ui.icon("plus", 14) }} Schlüssel</button>{% endif %}</div>
+      {% if keys %}
+      <table>
+        <thead><tr><th>Name</th><th>Schlüssel</th><th>Zuletzt benutzt</th><th></th></tr></thead>
+        <tbody>{% for k in keys %}
+        <tr><td>{{ k.name }}<div class="small muted">seit {{ k.created_at | d }}</div></td><td class="mono small">wk_{{ k.prefix }}_…</td>
+            <td class="small nowrap">{{ k.last_used_at | dt }}</td>
+            <td class="right">{% if k.revoked_at %}{{ ui.badge("revoked") }}{% elif can("keys") %}
+              <form class="inline" method="post" action="/portal/keys/{{ k.id }}/revoke" data-confirm="Schlüssel widerrufen? Systeme, die ihn nutzen, funktionieren dann nicht mehr.">
+              <input type="hidden" name="csrf" value="{{ csrf }}"><button class="small danger">Widerrufen</button></form>{% endif %}</td></tr>
+        {% endfor %}</tbody>
+      </table>
+      {% else %}{{ ui.empty("Noch keine Schlüssel.") }}{% endif %}
+    </div>
+
+    <div class="card">
+      <div class="card-h"><h2>Webhooks</h2>{% if can("keys") %}<button class="small primary" data-open="new-hook">{{ ui.icon("plus", 14) }} Webhook</button>{% endif %}</div>
+      {% if hooks %}
+      <table>
+        <thead><tr><th>Adresse</th><th>Ereignisse</th><th></th></tr></thead>
+        <tbody>{% for h in hooks %}
+        <tr><td class="small mono" style="word-break:break-all">{{ h.url }}</td><td><div class="chips">{% for e in h.events %}<code>{{ e }}</code>{% endfor %}</div></td>
+          <td class="right">{% if can("keys") %}<div class="row-actions">
+            <form class="inline" method="post" action="/portal/webhooks/{{ h.id }}/test"><input type="hidden" name="csrf" value="{{ csrf }}"><button class="small">Testen</button></form>
+            <form class="inline" method="post" action="/portal/webhooks/{{ h.id }}/delete" data-confirm="Webhook löschen?"><input type="hidden" name="csrf" value="{{ csrf }}"><button class="small danger">Löschen</button></form></div>{% endif %}</td></tr>
+        {% endfor %}</tbody>
+      </table>
+      {% else %}{{ ui.empty("Noch keine Webhooks.", "Wir melden z. B., wenn ein Kunde den Pass zur Wallet hinzufügt.") }}{% endif %}
+      <div class="card-b small muted" style="border-top:1px solid var(--line)">Jede Nachricht trägt den Header <code>Wallet-Signature: t=…,v1=…</code> – HMAC-SHA256 über <code>"&lt;t&gt;.&lt;body&gt;"</code> mit deinem Geheimnis.</div>
+    </div>
+  </div>
+
+  <div class="stack">
+    <div class="card">
+      <div class="card-h"><h2>Pass per API ausgeben</h2></div>
+      <div class="card-b">
 <pre>curl -X POST {{ base }}/api/v1/passes \
   -H "Authorization: Bearer wk_…" \
   -H "Content-Type: application/json" \
   -H "Idempotency-Key: bestellung-4711" \
-  -d '{"template_id": "VORLAGEN-ID", "data": {"name": "Anna Beispiel"}}'</pre>
-  <p class="small muted">Die Antwort enthält <code>page_url</code> – den Link für deinen Kunden – und <code>download_url</code> für die Datei selbst.</p>
-  <h2 style="margin-top:16px">Button auf deiner Website</h2>
+  -d '{"template_id": "VORLAGEN-ID",
+       "data": {"name": "Anna Beispiel"}}'</pre>
+        <p class="small muted">Die Antwort enthält <code>page_url</code> – den Link für deinen Kunden – und <code>download_url</code> für die Datei selbst. Mit <code>Idempotency-Key</code> entsteht bei Wiederholung kein zweiter Pass.</p>
+      </div>
+    </div>
+    <div class="card">
+      <div class="card-h"><h2>Button auf deiner Website</h2></div>
+      <div class="card-b">
 <pre>&lt;a href="PAGE_URL_AUS_DER_ANTWORT"&gt;
-  &lt;img src="add-to-apple-wallet.svg" alt="Zu Apple Wallet hinzufügen" height="48"&gt;
+  &lt;img src="add-to-apple-wallet.svg"
+       alt="Zu Apple Wallet hinzufügen" height="48"&gt;
 &lt;/a&gt;</pre>
-  <p class="small muted">Das offizielle Badge „Add to Apple Wallet“ stellt Apple bereit; bitte die Gestaltungsregeln von Apple beachten.</p>
+        <p class="small muted">Das offizielle Badge „Add to Apple Wallet“ stellt Apple bereit; bitte Apples Gestaltungsregeln beachten.</p>
+      </div>
+    </div>
+  </div>
 </div>
 
-<div class="card"><h2>Webhooks</h2>
-  <p class="small muted">Wir senden Ereignisse per POST an deine Adresse. Header <code>Wallet-Signature: t=…,v1=…</code> – HMAC-SHA256 über <code>"&lt;t&gt;.&lt;body&gt;"</code> mit deinem Geheimnis.</p>
-  {% if hooks %}
-  <table>
-    <tr><th>Adresse</th><th>Ereignisse</th><th></th></tr>
-    {% for h in hooks %}
-    <tr><td class="small"><code>{{ h.url }}</code></td><td class="small">{{ h.events | join(", ") }}</td>
-      <td>{% if can("keys") %}<form class="inline" method="post" action="/portal/webhooks/{{ h.id }}/test"><input type="hidden" name="csrf" value="{{ csrf }}"><button class="small">Testen</button></form>
-          <form class="inline" method="post" action="/portal/webhooks/{{ h.id }}/delete" onsubmit="return confirm('Webhook löschen?')"><input type="hidden" name="csrf" value="{{ csrf }}"><button class="small danger">Löschen</button></form>{% endif %}</td></tr>
-    {% endfor %}
-  </table>
-  {% endif %}
-  {% if can("keys") %}
-  <form method="post" action="/portal/webhooks" style="margin-top:12px">
-    <input type="hidden" name="csrf" value="{{ csrf }}">
-    <label class="f">Adresse (https://)<input type="url" name="url" required placeholder="https://shop.example.de/hooks/wallet"></label>
-    <p class="small">{% for e in events %}<label style="margin-right:14px"><input type="checkbox" name="events" value="{{ e }}" checked> <code>{{ e }}</code></label>{% endfor %}</p>
-    <button class="primary">Webhook anlegen</button>
-  </form>{% endif %}
-</div>
+{% if can("keys") %}
+{% call ui.dialog("new-key", "API-Schlüssel erzeugen") %}
+<form method="post" action="/portal/keys">
+  <input type="hidden" name="csrf" value="{{ csrf }}">
+  <label class="f">Wofür ist der Schlüssel?<input type="text" name="name" maxlength="100" placeholder="z. B. Webshop" autofocus></label>
+  <div class="foot"><button type="button" data-close>Abbrechen</button><button class="primary">Erzeugen</button></div>
+</form>
+{% endcall %}
+{% call ui.dialog("new-hook", "Webhook anlegen") %}
+<form method="post" action="/portal/webhooks">
+  <input type="hidden" name="csrf" value="{{ csrf }}">
+  <label class="f">Adresse (https://)<input type="url" name="url" required placeholder="https://shop.example.de/hooks/wallet" autofocus></label>
+  <div class="f">Ereignisse</div>
+  {% for e in events %}<label class="check"><input type="checkbox" name="events" value="{{ e }}" checked> <code>{{ e }}</code></label>{% endfor %}
+  <div class="foot"><button type="button" data-close>Abbrechen</button><button class="primary">Anlegen</button></div>
+</form>
+{% endcall %}
+{% endif %}
 {% endblock %}

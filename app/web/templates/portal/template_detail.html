@@ -1,49 +1,59 @@
-{% extends "base.html" %}
+{% extends "base.html" %}{% import "_ui.html" as ui %}
 {% set active = "templates" %}{% set title = t.name %}
 {% block content %}
-<p class="small"><a href="/portal/templates">← Vorlagen</a></p>
-<h1>{{ t.name }}</h1>
-<p class="lead">
-  {% if t.approved_version %}<span class="badge approved">Version {{ t.approved_version.number }} freigegeben</span>{% else %}<span class="badge">noch nicht freigegeben</span>{% endif %}
-  {% if latest.status == "pending" %}<span class="badge pending">Version {{ latest.number }} in Prüfung</span>{% endif %}
-  {% if latest.status == "rejected" %}<span class="badge rejected">Version {{ latest.number }} abgelehnt</span>{% endif %}
-  · {{ passes }} Pässe
-</p>
-{% if latest.status == "rejected" and latest.review_note %}<div class="msg error">Begründung: {{ latest.review_note }}</div>{% endif %}
-
-<div class="card">
-  <div class="row">
-    {% if can("templates") %}<div class="shrink"><a class="btn primary" href="/portal/templates/{{ t.id }}/editor">Im Editor bearbeiten</a></div>{% endif %}
-    <form method="post" action="/portal/templates/{{ t.id }}/test-pass" class="shrink">
-      <input type="hidden" name="csrf" value="{{ csrf }}"><button>Test-Pass herunterladen</button></form>
-    {% if t.approved_version and can("passes") %}<div class="shrink"><a class="btn" href="/portal/passes/new?template_id={{ t.id }}">Pass ausgeben</a></div>{% endif %}
+<div class="crumb"><a href="/portal/templates">Vorlagen</a> /</div>
+<div class="page-head">
+  <div><h1>{{ t.name }}</h1>
+    <div class="sub">{{ passes }} Pässe · zuletzt geändert {{ t.updated_at | dt }}</div></div>
+  <div class="actions">
+    <form method="post" action="/portal/templates/{{ t.id }}/test-pass" class="inline"><input type="hidden" name="csrf" value="{{ csrf }}">
+      <button>{{ ui.icon("download", 16) }} Test-Pass</button></form>
+    {% if t.approved_version and can("passes") %}<a class="btn" href="/portal/passes/new?template_id={{ t.id }}">{{ ui.icon("plus", 16) }} Pass ausgeben</a>{% endif %}
+    {% if can("templates") %}<a class="btn primary" href="/portal/templates/{{ t.id }}/editor">{{ ui.icon("edit", 16) }} Im Editor bearbeiten</a>{% endif %}
   </div>
-  <p class="small muted">Der Test-Pass nutzt Beispielwerte und läuft nach 24 Stunden ab. Jede gespeicherte Änderung wird geprüft, bevor neue Pässe sie bekommen; danach erhalten auch alle bereits ausgegebenen Pässe das neue Design.</p>
 </div>
+{% if latest.status == "rejected" and latest.review_note %}<div class="msg error">Version {{ latest.number }} wurde abgelehnt: {{ latest.review_note }}</div>{% endif %}
 
-<div class="card"><h2>Platzhalter</h2>
-  {% if placeholders %}
-  <p>Diese Felder müssen bei der Ausgabe gefüllt werden:</p>
-  <p>{% for p in placeholders %}<code>{{ p }}</code> {% endfor %}</p>
-  <p class="small muted">API: <code>{"template_id": "{{ t.id }}", "data": { {% for p in placeholders %}"{{ p }}": "…"{{ ", " if not loop.last }}{% endfor %} }}</code></p>
-  {% else %}<p class="muted">Keine Platzhalter – alle Pässe sehen gleich aus. Im Editor z. B. <code>{{ "{{name}}" }}</code> als Feldwert eintragen.</p>{% endif %}
-</div>
-
-{% set problems = issues | selectattr("level", "in", ["error", "warning"]) | list %}
-{% if problems %}
-<div class="card"><h2>Hinweise der Prüfung</h2>
-  <ul class="issues">{% for i in problems %}<li class="{{ i.level }}"><code>{{ i.path }}</code> {{ i.message }}</li>{% endfor %}</ul>
-</div>
-{% endif %}
-
-<div class="card"><h2>Versionen</h2>
-  <table>
-    <tr><th>Version</th><th>Status</th><th>Erstellt</th><th>Notiz</th></tr>
-    {% for v in t.versions | reverse %}
-    <tr><td>{{ v.number }}{% if t.approved_version and v.id == t.approved_version.id %} <span class="badge ok">aktiv</span>{% endif %}</td>
-        <td><span class="badge {{ v.status }}">{{ {"pending": "in Prüfung", "approved": "freigegeben", "rejected": "abgelehnt"}[v.status] }}</span></td>
-        <td class="small">{{ v.created_at | dt }}</td><td class="small">{{ v.review_note }}</td></tr>
-    {% endfor %}
-  </table>
+<div class="cols">
+  <div class="stack">
+    <div class="card">
+      <div class="card-h"><h2>Platzhalter</h2><span class="hint">müssen bei jeder Ausgabe gefüllt werden</span></div>
+      <div class="card-b">
+        {% if placeholders %}
+        <div class="chips" style="margin-bottom:14px">{% for p in placeholders %}<code>{{ p }}</code>{% endfor %}</div>
+        <pre>{ "template_id": "{{ t.id }}",
+  "data": { {% for p in placeholders %}"{{ p }}": "…"{{ ", " if not loop.last }}{% endfor %} } }</pre>
+        {% else %}<p class="muted">Keine Platzhalter – alle Pässe sehen gleich aus. Im Editor z. B. <code>{{ "{{name}}" }}</code> als Feldwert eintragen.</p>{% endif %}
+      </div>
+    </div>
+    <div class="card">
+      <div class="card-h"><h2>Versionen</h2><span class="hint">Pässe nutzen immer die aktive Version</span></div>
+      <table>
+        <thead><tr><th>Version</th><th>Status</th><th>Erstellt</th><th>Notiz der Prüfung</th></tr></thead>
+        <tbody>{% for v in t.versions | reverse %}
+        <tr><td><b>{{ v.number }}</b>{% if t.approved_version and v.id == t.approved_version.id %} <span class="badge active">aktiv</span>{% endif %}</td>
+            <td>{{ ui.badge(v.status) }}</td><td class="small nowrap">{{ v.created_at | dt }}</td><td class="small">{{ v.review_note or "–" }}</td></tr>
+        {% endfor %}</tbody>
+      </table>
+    </div>
+  </div>
+  <div class="stack">
+    <div class="card">
+      <div class="card-h"><h2>Status</h2></div>
+      <table class="kv"><tbody>
+        <tr><td>Aktiv</td><td>{% if t.approved_version %}Version {{ t.approved_version.number }}{% else %}<span class="muted">noch keine Freigabe</span>{% endif %}</td></tr>
+        <tr><td>Neueste</td><td>Version {{ latest.number }} {{ ui.badge(latest.status) }}</td></tr>
+      </tbody></table>
+      <div class="card-b small muted">Jede gespeicherte Änderung wird geprüft. Nach der Freigabe bekommen auch alle bereits ausgegebenen Pässe das neue Design.</div>
+    </div>
+    {% set problems = issues | selectattr("level", "in", ["error", "warning"]) | list %}
+    <div class="card">
+      <div class="card-h"><h2>Prüfung nach Apple-Regeln</h2>{% if not problems %}{{ ui.badge("done") }}{% endif %}</div>
+      <div class="card-b">
+        {% if problems %}<ul class="issues">{% for i in problems %}<li class="{{ i.level }}"><code>{{ i.path }}</code> {{ i.message }}</li>{% endfor %}</ul>
+        {% else %}<p class="muted">Keine Fehler oder Warnungen.</p>{% endif %}
+      </div>
+    </div>
+  </div>
 </div>
 {% endblock %}

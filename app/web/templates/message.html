@@ -1,8 +1,8 @@
-{% extends "base.html" %}
+{% extends "base.html" %}{% import "_ui.html" as ui %}
 {% block body %}
-<div class="center"><div class="card">
+<div class="center"><div class="card"><div class="card-b">
   <h1>{{ title }}</h1>
   <p>{{ text }}</p>
   <p><a href="javascript:history.back()">Zurück</a>{% if user %} · <a href="/portal">Zum Portal</a>{% else %} · <a href="/auth/login">Anmelden</a>{% endif %}</p>
-</div></div>
+</div></div></div>
 {% endblock %}

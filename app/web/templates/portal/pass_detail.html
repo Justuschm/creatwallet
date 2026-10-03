@@ -1,34 +1,58 @@
-{% extends "base.html" %}
+{% extends "base.html" %}{% import "_ui.html" as ui %}
 {% set active = "passes" %}{% set title = p.serial_number %}
 {% block content %}
-<p class="small"><a href="/portal/passes">← Pässe</a></p>
-<h1><code>{{ p.serial_number }}</code></h1>
-<p class="lead"><span class="badge {{ p.status }}">{{ "aktiv" if p.status == "active" else "gesperrt" }}</span>
-  · {{ p.template.name }} · Version {{ p.version }} · auf {{ p.registrations | length }} Gerät(en) · geändert {{ p.updated_at | dt }}</p>
-
-<div class="card"><h2>Link für den Kunden</h2>
-  <div class="secret">{{ page_url }}</div>
-  <p class="row"><a class="btn shrink" href="{{ page_url }}" target="_blank" rel="noopener">Seite öffnen</a>
-     <a class="btn shrink" href="{{ page_url }}/pass.pkpass">.pkpass herunterladen</a></p>
+<div class="crumb"><a href="/portal/passes">Pässe</a> /</div>
+<div class="page-head">
+  <div><h1 class="mono" style="font-size:20px">{{ p.serial_number }}</h1>
+    <div class="sub">{{ p.template.name }} · Version {{ p.version }} · geändert {{ p.updated_at | dt }}</div></div>
+  <div class="actions">{{ ui.badge(p.status) }}
+    <a class="btn" href="{{ page_url }}" target="_blank" rel="noopener">{{ ui.icon("external", 16) }} Kundenseite</a>
+    <a class="btn" href="{{ page_url }}/pass.pkpass">{{ ui.icon("download", 16) }} .pkpass</a></div>
 </div>
 
-<div class="card"><h2>Inhalt</h2>
-  {% if p.status == "active" and can("passes") %}
-  <form method="post" action="/portal/passes/{{ p.id }}">
-    <input type="hidden" name="csrf" value="{{ csrf }}">
-    {% for f in fields %}<label class="f">{{ f }}<input type="text" name="f_{{ f }}" value="{{ p.data.get(f, '') }}"></label>{% endfor %}
-    <button class="primary">Speichern und an Geräte senden</button>
-  </form>
-  {% else %}
-  <table>{% for k, val in p.data.items() %}<tr><td class="muted">{{ k }}</td><td>{{ val }}</td></tr>{% endfor %}</table>
-  {% endif %}
+<div class="cols">
+  <div class="stack">
+    <div class="card">
+      <div class="card-h"><h2>Inhalt</h2>{% if p.status == "active" and can("passes") %}<span class="hint">Speichern schickt die Änderung an alle Geräte</span>{% endif %}</div>
+      <div class="card-b">
+        {% if p.status == "active" and can("passes") %}
+        <form method="post" action="/portal/passes/{{ p.id }}">
+          <input type="hidden" name="csrf" value="{{ csrf }}">
+          <div class="grid-form">{% for f in fields %}<label class="f">{{ f }}<input type="text" name="f_{{ f }}" value="{{ p.data.get(f, '') }}"></label>{% endfor %}</div>
+          <button class="primary">Speichern</button>
+        </form>
+        {% else %}
+        <table class="kv"><tbody>{% for k, val in p.data.items() %}<tr><td>{{ k }}</td><td>{{ val }}</td></tr>{% endfor %}</tbody></table>
+        {% endif %}
+      </div>
+    </div>
+    {% if p.status == "active" and can("passes") %}
+    <div class="card danger">
+      <div class="card-h"><h2>Pass sperren</h2>
+        <form method="post" action="/portal/passes/{{ p.id }}/void" data-confirm="Pass wirklich sperren? Das lässt sich nicht rückgängig machen.">
+          <input type="hidden" name="csrf" value="{{ csrf }}"><button class="danger">Sperren</button></form></div>
+      <div class="card-b small muted">Für stornierte Tickets oder gekündigte Mitgliedschaften. Der Pass bleibt in der Wallet, wird dort aber als ungültig angezeigt.</div>
+    </div>
+    {% endif %}
+  </div>
+  <div class="stack">
+    <div class="card">
+      <div class="card-h"><h2>Link für den Kunden</h2></div>
+      <div class="card-b">
+        <div class="qr" style="text-align:center">{{ qr | safe }}</div>
+        <div class="secret small">{{ page_url }}</div>
+      </div>
+    </div>
+    <div class="card">
+      <div class="card-h"><h2>Details</h2></div>
+      <table class="kv"><tbody>
+        <tr><td>Status</td><td>{{ ui.badge(p.status) }}</td></tr>
+        <tr><td>Installiert auf</td><td>{{ p.registrations | length }} Gerät(en)</td></tr>
+        <tr><td>Version</td><td>{{ p.version }}</td></tr>
+        <tr><td>Erstellt</td><td>{{ p.created_at | dt }}</td></tr>
+        <tr><td>Interne ID</td><td class="small mono">{{ p.id }}</td></tr>
+      </tbody></table>
+    </div>
+  </div>
 </div>
-
-{% if p.status == "active" and can("passes") %}
-<div class="card"><h2>Sperren</h2>
-  <p class="small muted">Für stornierte Tickets oder gekündigte Mitgliedschaften. Der Pass bleibt in der Wallet, wird dort aber als ungültig angezeigt. Nicht umkehrbar.</p>
-  <form method="post" action="/portal/passes/{{ p.id }}/void" onsubmit="return confirm('Pass wirklich sperren?')">
-    <input type="hidden" name="csrf" value="{{ csrf }}"><button class="danger">Pass sperren</button></form>
-</div>
-{% endif %}
 {% endblock %}

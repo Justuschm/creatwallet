@@ -1,35 +1,38 @@
-{% extends "base.html" %}
+{% extends "base.html" %}{% import "_ui.html" as ui %}
 {% set active = "templates" %}{% set title = "Vorlagen" %}
 {% block content %}
-<h1>Vorlagen</h1>
-<p class="lead">Eine Vorlage legt Aussehen und Felder eines Passes fest. Platzhalter wie <code>{{ "{{name}}" }}</code> werden bei der Ausgabe gefüllt.</p>
+<div class="page-head">
+  <div><h1>Vorlagen</h1><div class="sub">Aussehen und Felder eines Passes. Platzhalter wie <code>{{ "{{name}}" }}</code> werden bei der Ausgabe gefüllt.</div></div>
+  {% if can("templates") %}<div class="actions"><button class="primary" data-open="new-template">{{ ui.icon("plus", 16) }} Neue Vorlage</button></div>{% endif %}
+</div>
 
 <div class="card">
   {% if templates %}
   <table>
-    <tr><th>Name</th><th>Status</th><th>Version</th><th>Platzhalter</th><th>Geändert</th></tr>
-    {% for t in templates %}
+    <thead><tr><th>Name</th><th>Status</th><th>Version</th><th>Platzhalter</th><th class="right">Geändert</th><th></th></tr></thead>
+    <tbody>{% for t in templates %}
     <tr>
-      <td><a href="/portal/templates/{{ t.id }}">{{ t.name }}</a></td>
-      <td>{% if t.approved_version %}<span class="badge approved">freigegeben</span>{% endif %}
-          {% if t.latest_version.status == "pending" %}<span class="badge pending">in Prüfung</span>{% elif t.latest_version.status == "rejected" %}<span class="badge rejected">abgelehnt</span>{% endif %}</td>
+      <td><a href="/portal/templates/{{ t.id }}"><b>{{ t.name }}</b></a></td>
+      <td>{% if t.approved_version %}{{ ui.badge("approved") }}{% endif %}
+          {% if t.latest_version.status != "approved" %} {{ ui.badge(t.latest_version.status) }}{% endif %}</td>
       <td>{{ t.latest_version.number }}</td>
-      <td class="small">{{ t.latest_version.pass_json | placeholders | join(", ") or "–" }}</td>
-      <td class="small muted">{{ t.updated_at.strftime("%d.%m.%Y %H:%M") }}</td>
+      <td><div class="chips">{% for p in t.latest_version.pass_json | placeholders %}<code>{{ p }}</code>{% else %}<span class="muted">–</span>{% endfor %}</div></td>
+      <td class="right small muted nowrap">{{ t.updated_at | dt }}</td>
+      <td class="right">{% if can("templates") %}<a class="btn small" href="/portal/templates/{{ t.id }}/editor">{{ ui.icon("edit", 14) }} Editor</a>{% endif %}</td>
     </tr>
-    {% endfor %}
+    {% endfor %}</tbody>
   </table>
-  {% else %}<p class="muted">Noch keine Vorlagen.</p>{% endif %}
+  {% else %}{{ ui.empty("Noch keine Vorlagen.", "Lege eine Vorlage an – am einfachsten aus einer Startvorlage.") }}{% endif %}
 </div>
 
 {% if can("templates") %}
-<div class="card"><h2>Neue Vorlage</h2>
-  <form method="post" action="/portal/templates" class="row">
-    <input type="hidden" name="csrf" value="{{ csrf }}">
-    <label class="f">Name<input type="text" name="name" required maxlength="200" placeholder="z. B. Konzertticket"></label>
-    <label class="f">Startvorlage<select name="base">{% for key, title in bases %}<option value="{{ key }}" {{ "selected" if key == "posterEventTicket" }}>{{ title }}</option>{% endfor %}</select></label>
-    <div class="shrink" style="margin-bottom:12px"><button class="primary">Anlegen und gestalten</button></div>
-  </form>
-</div>
+{% call ui.dialog("new-template", "Neue Vorlage") %}
+<form method="post" action="/portal/templates">
+  <input type="hidden" name="csrf" value="{{ csrf }}">
+  <label class="f">Name<input type="text" name="name" required maxlength="200" placeholder="z. B. Konzertticket" autofocus></label>
+  <label class="f">Startvorlage<select name="base">{% for key, title in bases %}<option value="{{ key }}" {{ "selected" if key == "posterEventTicket" }}>{{ title }}</option>{% endfor %}</select></label>
+  <div class="foot"><button type="button" data-close>Abbrechen</button><button class="primary">Anlegen und gestalten</button></div>
+</form>
+{% endcall %}
 {% endif %}
 {% endblock %}

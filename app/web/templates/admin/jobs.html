@@ -1,17 +1,14 @@
-{% extends "base.html" %}
+{% extends "base.html" %}{% import "_ui.html" as ui %}
 {% set area = "admin" %}{% set active = "jobs" %}{% set title = "Jobs" %}
 {% block content %}
-<h1>Jobs</h1>
-<p class="lead">Push an iPhones und Webhooks an Firmen.
-  {% for s, label in (("failed", "fehlgeschlagen"), ("pending", "wartend"), ("running", "laufend"), ("done", "erledigt")) %}<a href="?status={{ s }}" style="margin-left:12px;{{ 'font-weight:700' if s == status }}">{{ label }} ({{ counts.get(s, 0) }})</a>{% endfor %}</p>
+<div class="page-head"><div><h1>Jobs</h1><div class="sub">Push an iPhones und Webhooks an Firmen.</div></div>
+  <div class="actions">{% for s, label in (("failed", "Fehlgeschlagen"), ("pending", "Wartend"), ("running", "Läuft"), ("done", "Erledigt")) %}<a class="btn small {{ 'primary' if s == status }}" href="?status={{ s }}">{{ label }} · {{ counts.get(s, 0) }}</a>{% endfor %}</div></div>
 <div class="card">
   {% if rows %}
-  <table>
-    <tr><th>Art</th><th>Versuche</th><th>Nächster Lauf</th><th>Fehler</th><th></th></tr>
-    {% for j in rows %}<tr><td><code>{{ j.kind }}</code></td><td>{{ j.attempts }}</td><td class="small">{{ j.run_after | dt }}</td>
-      <td class="small">{{ j.last_error[:200] }}</td>
-      <td>{% if j.status in ("failed", "pending") %}<form class="inline" method="post" action="/admin/jobs/{{ j.id }}/retry"><input type="hidden" name="csrf" value="{{ csrf }}"><button class="small">Jetzt erneut</button></form>{% endif %}</td></tr>{% endfor %}
-  </table>
-  {% else %}<p class="muted">Keine Jobs mit diesem Status.</p>{% endif %}
+  <table><thead><tr><th>Art</th><th>Versuche</th><th>Nächster Lauf</th><th>Letzter Fehler</th><th></th></tr></thead>
+    <tbody>{% for j in rows %}<tr><td><code>{{ j.kind }}</code></td><td>{{ j.attempts }}</td><td class="small nowrap">{{ j.run_after | dt }}</td>
+      <td class="small">{{ j.last_error[:240] or "–" }}</td>
+      <td class="right">{% if j.status in ("failed", "pending") %}<form class="inline" method="post" action="/admin/jobs/{{ j.id }}/retry"><input type="hidden" name="csrf" value="{{ csrf }}"><button class="small">Jetzt erneut</button></form>{% endif %}</td></tr>{% endfor %}</tbody></table>
+  {% else %}{{ ui.empty("Keine Jobs mit diesem Status.") }}{% endif %}
 </div>
 {% endblock %}

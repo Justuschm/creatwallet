@@ -1,25 +1,34 @@
-{% extends "base.html" %}
+{% extends "base.html" %}{% import "_ui.html" as ui %}
 {% set active = "stats" %}{% set title = "Statistik" %}
 {% block content %}
-<h1>Statistik</h1>
-<p class="lead">{{ total_issued }} Pässe ausgegeben und {{ total_installed }}-mal zur Wallet hinzugefügt in den letzten {{ days }} Tagen.</p>
-<div class="card">
-  <div class="row" style="justify-content:space-between;align-items:center">
-    <div class="legend small"><span class="i">ausgegeben</span><span class="n">installiert</span></div>
-    <div class="shrink small">{% for d in (7, 30, 90) %}<a href="?days={{ d }}" style="margin-left:10px;{{ 'font-weight:700' if d == days }}">{{ d }} Tage</a>{% endfor %}</div>
-  </div>
-  <div class="bars" role="img" aria-label="Ausgegebene und installierte Pässe pro Tag">
-    {% for r in rows %}
-    <div class="day" title="{{ r.day.strftime('%d.%m.') }}: {{ r.issued }} ausgegeben, {{ r.installed }} installiert">
-      <div class="b i" style="height:{{ (r.issued / peak * 100) | round(1) }}%"></div>
-      <div class="b n" style="height:{{ (r.installed / peak * 100) | round(1) }}%"></div>
-    </div>
-    {% endfor %}
-  </div>
-  <div class="row small muted" style="justify-content:space-between"><span class="shrink">{{ rows[0].day.strftime("%d.%m.") }}</span><span class="shrink">{{ rows[-1].day.strftime("%d.%m.") }}</span></div>
+<div class="page-head">
+  <div><h1>Statistik</h1><div class="sub">Letzte {{ days }} Tage</div></div>
+  <div class="actions">{% for d in (7, 30, 90) %}<a class="btn small {{ 'primary' if d == days }}" href="?days={{ d }}">{{ d }} Tage</a>{% endfor %}</div>
 </div>
-<div class="card"><h2>Aktive Pässe je Vorlage</h2>
-  {% if per_template %}<table>{% for name, n in per_template %}<tr><td>{{ name }}</td><td>{{ n }}</td></tr>{% endfor %}</table>
-  {% else %}<p class="muted">Noch keine Pässe.</p>{% endif %}
+<div class="kpis">
+  <div class="kpi"><div class="l">Ausgegeben</div><div class="n">{{ total_issued }}</div></div>
+  <div class="kpi"><div class="l">Zur Wallet hinzugefügt</div><div class="n">{{ total_installed }}</div></div>
+  <div class="kpi"><div class="l">Quote</div><div class="n">{{ ((total_installed / total_issued * 100) | round | int) ~ " %" if total_issued else "–" }}</div></div>
+</div>
+<div class="cols">
+  <div class="card">
+    <div class="card-h"><h2>Pro Tag</h2><div class="legend small"><span class="i">ausgegeben</span><span class="n">installiert</span></div></div>
+    <div class="card-b">
+      <div class="bars" role="img" aria-label="Ausgegebene und installierte Pässe pro Tag">
+        {% for r in rows %}
+        <div class="day" title="{{ r.day.strftime('%d.%m.') }}: {{ r.issued }} ausgegeben, {{ r.installed }} installiert">
+          <div class="b i" style="height:{{ (r.issued / peak * 100) | round(1) }}%"></div>
+          <div class="b n" style="height:{{ (r.installed / peak * 100) | round(1) }}%"></div>
+        </div>
+        {% endfor %}
+      </div>
+      <div class="small muted" style="display:flex;justify-content:space-between;margin-top:6px"><span>{{ rows[0].day.strftime("%d.%m.") }}</span><span>höchster Wert: {{ peak }}</span><span>{{ rows[-1].day.strftime("%d.%m.") }}</span></div>
+    </div>
+  </div>
+  <div class="card">
+    <div class="card-h"><h2>Aktive Pässe je Vorlage</h2></div>
+    {% if per_template %}<table><tbody>{% for name, n in per_template %}<tr><td>{{ name }}</td><td class="right"><b>{{ n }}</b></td></tr>{% endfor %}</tbody></table>
+    {% else %}{{ ui.empty("Noch keine Pässe.") }}{% endif %}
+  </div>
 </div>
 {% endblock %}

@@ -50,7 +50,9 @@ def dashboard(request: Request, user: User = Depends(portal_user), session: Sess
         "templates": session.scalar(select(func.count(Template.id)).where(Template.tenant_id == tid)),
     }
     pending = [t for t in services.list_templates(session, user.tenant) if t.latest_version.status == "pending"]
-    return render(request, "portal/dashboard.html", user, stats=stats, pending=pending, tenant=user.tenant)
+    recent = services.list_passes(session, user.tenant, limit=8)
+    return render(request, "portal/dashboard.html", user, stats=stats, pending=pending, recent=recent,
+                  tenant=user.tenant)
 
 
 # ---------------------------------------------------------------- Vorlagen
@@ -235,7 +237,10 @@ def pass_detail(pass_id: str, request: Request, user: User = Depends(portal_user
     settings = ctx(request)[0]
     page_url = f"{settings.public_base_url}/p/{p.download_token}"
     fields = placeholders.find(p.template.approved_version.pass_json) if p.template.approved_version else list(p.data)
-    return render(request, "portal/pass_detail.html", user, p=p, page_url=page_url, fields=fields)
+    import segno
+
+    qr = segno.make(page_url, error="m").svg_inline(scale=4, border=2, dark="#000", light="#fff")
+    return render(request, "portal/pass_detail.html", user, p=p, page_url=page_url, fields=fields, qr=qr)
 
 
 @router.post("/passes/{pass_id}")

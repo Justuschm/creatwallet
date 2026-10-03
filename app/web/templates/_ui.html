@@ -1,0 +1,46 @@
+{# Wiederverwendbare Bausteine für Portal und Admin #}
+
+{% macro icon(name, size=18) -%}
+<svg width="{{ size }}" height="{{ size }}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+{%- if name == "home" %}<path d="M3 11l9-7 9 7"/><path d="M5 10v10h14V10"/><path d="M10 20v-6h4v6"/>
+{%- elif name == "layers" %}<path d="M12 3l9 5-9 5-9-5 9-5z"/><path d="M3 13l9 5 9-5"/>
+{%- elif name == "ticket" %}<path d="M3 8a2 2 0 002-2h14a2 2 0 002 2v2a2 2 0 000 4v2a2 2 0 00-2 2H5a2 2 0 00-2-2v-2a2 2 0 000-4z"/><path d="M14 6v12" stroke-dasharray="2 2"/>
+{%- elif name == "chart" %}<path d="M4 20V10"/><path d="M10 20V4"/><path d="M16 20v-7"/><path d="M22 20H2"/>
+{%- elif name == "plug" %}<path d="M9 3v5"/><path d="M15 3v5"/><path d="M6 8h12v3a6 6 0 01-12 0z"/><path d="M12 17v4"/>
+{%- elif name == "users" %}<circle cx="9" cy="8" r="3.5"/><path d="M2.5 20a6.5 6.5 0 0113 0"/><path d="M16 4.5a3.5 3.5 0 010 7"/><path d="M18 14a6.5 6.5 0 013.5 6"/>
+{%- elif name == "settings" %}<circle cx="12" cy="12" r="3"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3M4.9 4.9l2.1 2.1M17 17l2.1 2.1M4.9 19.1L7 17M17 7l2.1-2.1"/>
+{%- elif name == "shield" %}<path d="M12 3l8 3v6c0 5-3.5 8-8 9-4.5-1-8-4-8-9V6z"/><path d="M9 12l2 2 4-4"/>
+{%- elif name == "check" %}<path d="M20 6L9 17l-5-5"/>
+{%- elif name == "building" %}<path d="M4 21V5l8-3v19"/><path d="M12 9h8v12"/><path d="M8 8v.01M8 12v.01M8 16v.01M16 13v.01M16 17v.01"/>
+{%- elif name == "key" %}<circle cx="8" cy="15" r="4"/><path d="M11 12l9-9"/><path d="M17 6l3 3"/>
+{%- elif name == "activity" %}<path d="M3 12h4l3-8 4 16 3-8h4"/>
+{%- elif name == "list" %}<path d="M8 6h13M8 12h13M8 18h13"/><path d="M3 6h.01M3 12h.01M3 18h.01"/>
+{%- elif name == "plus" %}<path d="M12 5v14M5 12h14"/>
+{%- elif name == "logout" %}<path d="M15 4h4v16h-4"/><path d="M10 8l-4 4 4 4"/><path d="M6 12h10"/>
+{%- elif name == "external" %}<path d="M14 4h6v6"/><path d="M20 4l-9 9"/><path d="M18 14v6H4V6h6"/>
+{%- elif name == "download" %}<path d="M12 4v11"/><path d="M7 10l5 5 5-5"/><path d="M4 20h16"/>
+{%- elif name == "edit" %}<path d="M4 20h4L19 9l-4-4L4 16z"/>
+{%- elif name == "search" %}<circle cx="11" cy="11" r="7"/><path d="M20 20l-4-4"/>
+{%- elif name == "wallet" %}<rect x="3" y="6" width="18" height="14" rx="3"/><path d="M3 10h18"/><path d="M16 15h2"/>
+{%- endif %}
+</svg>
+{%- endmacro %}
+
+{% macro badge(status) -%}
+{%- set labels = {"active": "aktiv", "pending": "in Prüfung", "suspended": "gesperrt", "approved": "freigegeben",
+                  "rejected": "abgelehnt", "voided": "gesperrt", "done": "erledigt", "failed": "fehlgeschlagen",
+                  "running": "läuft", "revoked": "widerrufen", "invited": "eingeladen"} -%}
+<span class="badge {{ status }}">{{ labels.get(status, status) }}</span>
+{%- endmacro %}
+
+{# Dialog: {% call dialog("id", "Titel") %}…{% endcall %}; öffnen mit <button data-open="id"> #}
+{% macro dialog(id, title) -%}
+<dialog id="{{ id }}">
+  <div class="dlg-h"><h2>{{ title }}</h2><button type="button" class="ghost" data-close aria-label="Schließen">✕</button></div>
+  <div class="dlg-b">{{ caller() }}</div>
+</dialog>
+{%- endmacro %}
+
+{% macro empty(text, hint="") -%}
+<div class="empty"><p>{{ text }}</p>{% if hint %}<p class="small muted">{{ hint }}</p>{% endif %}</div>
+{%- endmacro %}

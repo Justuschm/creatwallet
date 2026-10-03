@@ -1,38 +1,58 @@
-{% extends "base.html" %}
+{% extends "base.html" %}{% import "_ui.html" as ui %}
 {% set active = "team" %}{% set title = "Team" %}
 {% block content %}
-<h1>Team</h1>
-<p class="lead">Wer in deiner Firma das Portal nutzt und was er darf.</p>
-{% if new_invite %}<div class="msg warn">Einladungslink (7 Tage gültig) – an die Person schicken:<div class="secret">{{ new_invite }}</div></div>{% endif %}
-<div class="card">
-  <table>
-    <tr><th>Person</th><th>Rolle</th><th>Zuletzt angemeldet</th><th></th></tr>
-    {% for m in members %}
-    <tr><td>{{ m.name or m.email }}<br><span class="small muted">{{ m.email }}</span></td>
-      <td>{% if can("team") and m.id != user.id %}
-        <form class="inline" method="post" action="/portal/team/{{ m.id }}/role"><input type="hidden" name="csrf" value="{{ csrf }}">
-          <select name="role" onchange="this.form.submit()">{% for key, label in ROLES.items() %}<option value="{{ key }}" {{ "selected" if key == m.role }}>{{ label }}</option>{% endfor %}</select></form>
-        {% else %}{{ ROLES[m.role] }}{% endif %}</td>
-      <td class="small">{{ m.last_login_at | dt }}</td>
-      <td>{% if can("team") %}<form class="inline" method="post" action="/portal/team/{{ m.id }}/remove" onsubmit="return confirm('Zugang entfernen?')"><input type="hidden" name="csrf" value="{{ csrf }}"><button class="small danger">Entfernen</button></form>{% endif %}</td></tr>
-    {% endfor %}
-  </table>
+<div class="page-head">
+  <div><h1>Team</h1><div class="sub">Wer in deiner Firma das Portal nutzt und was er darf.</div></div>
+  {% if can("team") %}<div class="actions"><button class="primary" data-open="invite">{{ ui.icon("plus", 16) }} Person einladen</button></div>{% endif %}
 </div>
-{% if invites %}
-<div class="card"><h2>Offene Einladungen</h2>
-  <table>{% for i in invites %}<tr><td>{{ i.email }}</td><td>{{ ROLES[i.role] }}</td><td class="small">bis {{ i.expires_at | d }}</td>
-    <td>{% if can("team") %}<form class="inline" method="post" action="/portal/invitations/{{ i.id }}/revoke"><input type="hidden" name="csrf" value="{{ csrf }}"><button class="small">Zurückziehen</button></form>{% endif %}</td></tr>{% endfor %}</table>
+{% if new_invite %}<div class="msg warn"><b>Einladungslink</b> (7 Tage gültig) – an die Person schicken:<div class="secret">{{ new_invite }}</div></div>{% endif %}
+
+<div class="cols">
+  <div class="stack">
+    <div class="card">
+      <div class="card-h"><h2>Mitglieder</h2><span class="hint">{{ members | length }} Personen</span></div>
+      <table>
+        <thead><tr><th>Person</th><th>Rolle</th><th>Zuletzt angemeldet</th><th></th></tr></thead>
+        <tbody>{% for m in members %}
+        <tr><td><b>{{ m.name or m.email }}</b>{% if m.id == user.id %} <span class="small muted">(du)</span>{% endif %}<div class="small muted">{{ m.email }}</div></td>
+          <td>{% if can("team") and m.id != user.id %}
+            <form class="inline" method="post" action="/portal/team/{{ m.id }}/role"><input type="hidden" name="csrf" value="{{ csrf }}">
+              <select name="role" onchange="this.form.submit()" aria-label="Rolle">{% for key, label in ROLES.items() %}<option value="{{ key }}" {{ "selected" if key == m.role }}>{{ label }}</option>{% endfor %}</select></form>
+            {% else %}{{ ROLES[m.role] }}{% endif %}</td>
+          <td class="small nowrap">{{ m.last_login_at | dt }}</td>
+          <td class="right">{% if can("team") %}<form class="inline" method="post" action="/portal/team/{{ m.id }}/remove" data-confirm="Zugang von {{ m.email }} entfernen?"><input type="hidden" name="csrf" value="{{ csrf }}"><button class="small danger">Entfernen</button></form>{% endif %}</td></tr>
+        {% endfor %}</tbody>
+      </table>
+    </div>
+    {% if invites %}
+    <div class="card">
+      <div class="card-h"><h2>Offene Einladungen</h2></div>
+      <table><tbody>{% for i in invites %}<tr><td>{{ i.email }}</td><td>{{ ROLES[i.role] }}</td><td class="small">gültig bis {{ i.expires_at | d }}</td>
+        <td class="right">{% if can("team") %}<form class="inline" method="post" action="/portal/invitations/{{ i.id }}/revoke"><input type="hidden" name="csrf" value="{{ csrf }}"><button class="small">Zurückziehen</button></form>{% endif %}</td></tr>{% endfor %}</tbody></table>
+    </div>
+    {% endif %}
+  </div>
+  <div class="card">
+    <div class="card-h"><h2>Rollen</h2></div>
+    <table class="kv"><tbody>
+      <tr><td>Inhaber</td><td>alles, auch Inhaber ernennen</td></tr>
+      <tr><td>Admin</td><td>alles außer Inhaber-Rechte</td></tr>
+      <tr><td>Gestalter</td><td>Vorlagen bearbeiten</td></tr>
+      <tr><td>Ausgabe</td><td>Pässe ausgeben, ändern, sperren</td></tr>
+      <tr><td>Nur lesen</td><td>alles ansehen</td></tr>
+    </tbody></table>
+  </div>
 </div>
-{% endif %}
+
 {% if can("team") %}
-<div class="card"><h2>Person einladen</h2>
-  <form method="post" action="/portal/team/invite" class="row">
-    <input type="hidden" name="csrf" value="{{ csrf }}">
-    <label class="f">E-Mail<input type="email" name="email" required></label>
-    <label class="f">Rolle<select name="role">{% for key, label in ROLES.items() %}{% if key != "owner" or user.role == "owner" %}<option value="{{ key }}" {{ "selected" if key == "designer" }}>{{ label }}</option>{% endif %}{% endfor %}</select></label>
-    <div class="shrink" style="margin-bottom:12px"><button class="primary">Einladungslink erzeugen</button></div>
-  </form>
-  <p class="small muted">Inhaber und Admin: alles · Gestalter: Vorlagen · Ausgabe: Pässe ausgeben und ändern · Nur lesen: ansehen.</p>
-</div>
+{% call ui.dialog("invite", "Person einladen") %}
+<form method="post" action="/portal/team/invite">
+  <input type="hidden" name="csrf" value="{{ csrf }}">
+  <label class="f">E-Mail<input type="email" name="email" required autofocus></label>
+  <label class="f">Rolle<select name="role">{% for key, label in ROLES.items() %}{% if key != "owner" or user.role == "owner" %}<option value="{{ key }}" {{ "selected" if key == "designer" }}>{{ label }}</option>{% endif %}{% endfor %}</select></label>
+  <p class="small muted">Du bekommst einen Einladungslink, den du der Person schickst.</p>
+  <div class="foot"><button type="button" data-close>Abbrechen</button><button class="primary">Link erzeugen</button></div>
+</form>
+{% endcall %}
 {% endif %}
 {% endblock %}
