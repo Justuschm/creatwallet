@@ -196,6 +196,7 @@
       <div class="group">Konto</div>
       <a class="item {{ 'on' if active == 'developers' }}" href="/portal/developers">{{ ui.icon("plug") }} Einbinden</a>
       <a class="item {{ 'on' if active == 'team' }}" href="/portal/team">{{ ui.icon("users") }} Team</a>
+      <a class="item {{ 'on' if active == 'certificate' }}" href="/portal/certificate">{{ ui.icon("key") }} Zertifikat</a>
       <a class="item {{ 'on' if active == 'settings' }}" href="/portal/settings">{{ ui.icon("settings") }} Einstellungen</a>
       <span class="spacer"></span>
       {% if user and user.is_admin %}<a class="item" href="/admin">{{ ui.icon("shield") }} Admin-Bereich</a>{% endif %}

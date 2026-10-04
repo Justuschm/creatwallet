@@ -104,15 +104,11 @@ def tenant_certificate(tenant_id: str, request: Request, certificate_id: str = F
                        user: User = Depends(admin_user), session: Session = Depends(get_session)):
     t = services.tenant_by_id(session, tenant_id)
     cert = session.get(Certificate, certificate_id) if certificate_id else None
-    if cert is not None and not cert.usable_by(t):
-        return back(f"/admin/tenants/{t.id}/certificate", request,
-                    "Dieses Zertifikat gehört einer anderen Firma und kann hier nicht verwendet werden.", "error")
-    if cert is not None and t.certificate_id != cert.id and session.scalar(
-            select(func.count(Pass.id)).where(Pass.tenant_id == t.id)):
-        flash(request, "Hinweis: Bereits ausgegebene Pässe bleiben bei ihrem bisherigen Zertifikat (Apple erkennt "
-                       "sie an der Pass Type ID) - es muss gültig bleiben, solange diese Pässe Updates bekommen sollen. "
-                       "Neue Pässe nutzen das neue Zertifikat.", "warn")
-    t.certificate = cert
+    try:
+        if services.assign_certificate(session, t, cert):
+            flash(request, "Hinweis: " + services.SWITCH_HINT, "warn")
+    except ServiceError as exc:
+        return back(f"/admin/tenants/{t.id}/certificate", request, exc.message, "error")
     audit(session, user, "admin.tenant.certificate", t.id, t.id,
           pass_type_identifier=cert.pass_type_identifier if cert else None)
     session.commit()

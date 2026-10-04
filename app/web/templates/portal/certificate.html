@@ -1,0 +1,72 @@
+{% extends "base.html" %}{% import "_ui.html" as ui %}
+{% set active = "certificate" %}{% set title = "Zertifikat" %}
+{% block content %}
+<div class="page-head">
+  <div><h1>Zertifikat</h1><div class="sub">Mit diesem Zertifikat werden deine Pässe signiert – Apple prüft es, bevor ein Pass in die Wallet darf.</div></div>
+  {% if can("settings") %}<div class="actions"><button class="primary" data-open="upload">{{ ui.icon("plus", 16) }} Eigenes Zertifikat hochladen</button></div>{% endif %}
+</div>
+
+<div class="cols">
+  <div class="stack">
+    <div class="card">
+      <div class="card-h"><h2>Aktiv für neue Pässe</h2>{{ ui.cert_kind(tenant.certificate) }}</div>
+      {% if tenant.certificate %}
+      <table class="kv"><tbody>
+        <tr><td>Herkunft</td><td>{% if tenant.certificate.owner_tenant_id %}Dein eigener Apple-Developer-Account (Team {{ tenant.certificate.team_identifier }}){% else %}Bereitgestellt von der Plattform{% endif %}</td></tr>
+        <tr><td>Pass Type ID</td><td class="mono small">{{ tenant.certificate.pass_type_identifier }}</td></tr>
+        <tr><td>Gültig bis</td><td>{{ ui.cert_expiry(tenant.certificate) }}</td></tr>
+      </tbody></table>
+      {% else %}{{ ui.empty("Noch kein Zertifikat.", "Wir hinterlegen ein Standard-Zertifikat bei der Freischaltung – oder du lädst dein eigenes hoch.") }}{% endif %}
+    </div>
+
+    <div class="card">
+      <div class="card-h"><h2>Verfügbare Zertifikate</h2></div>
+      <table><tbody>
+        {% if tenant.standard_certificate %}
+        <tr><td>{{ ui.cert_kind(tenant.standard_certificate) }}<div class="small mono">{{ tenant.standard_certificate.pass_type_identifier }}</div></td>
+          <td class="small">{{ ui.cert_expiry(tenant.standard_certificate) }}</td>
+          <td class="right">{% if tenant.certificate_id == tenant.standard_certificate_id %}<span class="badge active">aktiv</span>{% elif can("settings") %}
+            <form method="post" action="/portal/certificate/activate" class="inline"><input type="hidden" name="csrf" value="{{ csrf }}"><input type="hidden" name="certificate_id" value="standard"><button class="small">Verwenden</button></form>{% endif %}</td></tr>
+        {% endif %}
+        {% for c in own %}
+        <tr><td>{{ ui.cert_kind(c) }}<div class="small mono">{{ c.pass_type_identifier }}</div></td>
+          <td class="small">{{ ui.cert_expiry(c) }}</td>
+          <td class="right">{% if tenant.certificate_id == c.id %}<span class="badge active">aktiv</span>{% elif can("settings") %}
+            <form method="post" action="/portal/certificate/activate" class="inline"><input type="hidden" name="csrf" value="{{ csrf }}"><input type="hidden" name="certificate_id" value="{{ c.id }}"><button class="small">Verwenden</button></form>{% endif %}</td></tr>
+        {% endfor %}
+        {% if not tenant.standard_certificate and not own %}<tr><td class="muted">Keine.</td></tr>{% endif %}
+      </tbody></table>
+    </div>
+  </div>
+
+  <div class="stack">
+    <div class="card">
+      <div class="card-h"><h2>Eigenes Zertifikat – so geht's</h2></div>
+      <div class="card-b small">
+        <p class="muted">Nur nötig, wenn deine Pässe über deinen eigenen Apple-Developer-Account laufen sollen (99 USD/Jahr bei Apple).</p>
+        <ol class="steps">
+          <li>Im <a href="https://developer.apple.com/account/resources/identifiers/list/passTypeId" target="_blank" rel="noopener">Apple-Developer-Portal</a> eine Pass Type ID anlegen, z. B. <code>pass.de.deinefirma.ticket</code>.</li>
+          <li>Dazu ein Zertifikat erzeugen und herunterladen.</li>
+          <li>Am Mac per Doppelklick in die Schlüsselbundverwaltung laden, dann Zertifikat mit privatem Schlüssel als <code>.p12</code> exportieren und ein Passwort vergeben.</li>
+          <li>Hier hochladen.</li>
+        </ol>
+        <p><b>Wichtig:</b> Apple-Zertifikate laufen nach einem Jahr ab. Rechtzeitig ein neues mit derselben Pass Type ID erzeugen und hochladen – es ersetzt das alte ohne Unterbrechung.</p>
+        <p class="muted">Bei einem Wechsel bleiben bereits ausgegebene Pässe bei ihrem bisherigen Zertifikat. Neue Pässe nutzen das aktive.</p>
+      </div>
+    </div>
+  </div>
+</div>
+
+{% if can("settings") %}
+{% call ui.dialog("upload", "Eigenes Zertifikat hochladen") %}
+<form method="post" action="/portal/certificate/upload" enctype="multipart/form-data">
+  <input type="hidden" name="csrf" value="{{ csrf }}">
+  <label class="f">.p12-Datei aus deinem Apple-Account<input type="file" name="p12" accept=".p12,application/x-pkcs12" required></label>
+  <label class="f">Passwort der .p12<input type="password" name="password" autocomplete="off"></label>
+  <label class="check"><input type="checkbox" name="activate" value="true" checked> sofort für neue Pässe verwenden</label>
+  <p class="small muted">Wir speichern Zertifikat und Schlüssel verschlüsselt und nutzen sie nur zum Signieren deiner Pässe.</p>
+  <div class="foot"><button type="button" data-close>Abbrechen</button><button class="primary">Hochladen</button></div>
+</form>
+{% endcall %}
+{% endif %}
+{% endblock %}

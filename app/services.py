@@ -346,6 +346,23 @@ def build_test_pass(tenant, version, data, signers):
     return pkpass
 
 
+def assign_certificate(session, tenant, cert):
+    """Zertifikat für neue Pässe der Firma festlegen. Rückgabe: True, wenn schon Pässe existieren
+    (die bleiben bei ihrem bisherigen Zertifikat)."""
+    if cert is not None and not cert.usable_by(tenant):
+        raise ServiceError(403, "Dieses Zertifikat gehört einer anderen Firma und kann hier nicht verwendet werden.")
+    changed = tenant.certificate_id != (cert.id if cert else None)
+    tenant.certificate = cert
+    if cert is not None and not cert.is_own:
+        tenant.standard_certificate = cert
+    return changed and bool(session.scalar(select(func.count(Pass.id)).where(Pass.tenant_id == tenant.id)))
+
+
+SWITCH_HINT = ("Bereits ausgegebene Pässe bleiben bei ihrem bisherigen Zertifikat (Apple erkennt sie an der "
+               "Pass Type ID) - es muss gültig bleiben, solange diese Pässe Updates bekommen sollen. "
+               "Neue Pässe nutzen das neue Zertifikat.")
+
+
 def create_api_key(session, tenant, name=""):
     """Rückgabe (Datensatz, vollständiger Schlüssel) - der Schlüssel wird nur einmal angezeigt."""
     key, prefix, secret_hash = generate_api_key()

@@ -89,3 +89,49 @@ class CertificateTests(WebCase):
             self.assertEqual(t.certificate.pass_type_identifier, PTI)
         page = self.admin.get(f"/admin/tenants/{self.kino_id}/certificate").text
         self.assertIn("Aktivieren", page)
+
+
+class PortalCertificateTests(CertificateTests):
+    def portal_upload(self, client, pti=OWN_PTI, activate=True):
+        creds = make_credentials(b"pw", pti=pti, team="KINO123456")
+        data = {"password": "pw", **({"activate": "true"} if activate else {})}
+        return self.post(client, "/portal/certificate/upload", data,
+                         files={"p12": ("eigen.p12", creds["p12"], "application/x-pkcs12")})
+
+    def test_company_uploads_and_switches(self):
+        r = self.portal_upload(self.kino)
+        self.assertIn("ab jetzt aktiv", r.text)
+        self.assertEqual(self.issue_pti(), OWN_PTI)
+        # Zurück zum Standard-Zertifikat der Plattform
+        r = self.post(self.kino, "/portal/certificate/activate", {"certificate_id": "standard"})
+        self.assertIn(f"Aktiv für neue Pässe: {PTI}", r.text)
+        self.assertEqual(self.issue_pti(), PTI)
+        # Und wieder zum eigenen
+        with self.Session() as s:
+            own_id = s.query(Certificate).filter_by(pass_type_identifier=OWN_PTI).one().id
+        self.post(self.kino, "/portal/certificate/activate", {"certificate_id": own_id})
+        self.assertEqual(self.issue_pti(), OWN_PTI)
+        with self.Session() as s:
+            from app.models import AuditLog
+            self.assertTrue(s.query(AuditLog).filter_by(action="certificate.own.import").count())
+
+    def issue_pti(self):
+        p = self.issue()
+        return inspect_pkpass(self.kino.get(f"/p/{p.download_token}/pass.pkpass").content)["pass"]["passTypeIdentifier"]
+
+    def test_permissions_and_isolation(self):
+        # Nur Inhaber/Admin der Firma dürfen hochladen
+        r = self.post(self.kino, "/portal/team/invite", {"email": "ben@kino.test", "role": "issuer"})
+        import re
+        link = re.search(r"http://testserver(/invite/[A-Za-z0-9_-]+)", r.text).group(1)
+        ben = self.login("ben@kino.test")
+        ben.get(link)
+        self.assertEqual(self.portal_upload(ben).status_code, 403)
+        # Eigenes Zertifikat einer anderen Firma lässt sich nicht aktivieren
+        zoo = self.company("eva@zoo.test", "Zoo GmbH")
+        self.portal_upload(self.kino)
+        with self.Session() as s:
+            own_id = s.query(Certificate).filter_by(pass_type_identifier=OWN_PTI).one().id
+        r = self.post(zoo, "/portal/certificate/activate", {"certificate_id": own_id})
+        self.assertEqual(r.status_code, 404)
+        self.assertNotIn(OWN_PTI, zoo.get("/portal/certificate").text)

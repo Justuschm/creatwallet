@@ -456,6 +456,65 @@ def _owner_count(session, tenant_id):
     return session.scalar(select(func.count(User.id)).where(User.tenant_id == tenant_id, User.role == "owner"))
 
 
+# ---------------------------------------------------------------- Zertifikat
+
+@router.get("/certificate")
+def certificate_page(request: Request, user: User = Depends(portal_user), session: Session = Depends(get_session)):
+    from ..models import Certificate
+
+    own = session.scalars(select(Certificate).where(Certificate.owner_tenant_id == user.tenant_id)
+                          .order_by(Certificate.created_at.desc())).all()
+    return render(request, "portal/certificate.html", user, tenant=user.tenant, own=own)
+
+
+@router.post("/certificate/upload")
+async def certificate_upload(request: Request, user: User = Depends(portal_user),
+                             session: Session = Depends(get_session)):
+    """Eigenes Zertifikat aus dem Apple-Account der Firma hochladen."""
+    from ..certs import CertStoreError, import_certificate
+
+    require(user, "settings")
+    form = await request.form()
+    upload = form.get("p12")
+    data = await upload.read() if hasattr(upload, "read") else b""
+    if not data or len(data) > 100_000:
+        return back("/portal/certificate", request, "Bitte eine .p12-Datei (max. 100 KB) auswählen.", "error")
+    settings, signers, _ = ctx(request)
+    try:
+        cert = import_certificate(session, signers.store, data, str(form.get("password") or ""), settings.wwdr_path,
+                                  owner_tenant_id=user.tenant_id)
+    except CertStoreError as exc:
+        session.rollback()
+        return back("/portal/certificate", request, str(exc), "error")
+    signers.forget(cert.pass_type_identifier)
+    activate = form.get("activate") == "true"
+    if activate and services.assign_certificate(session, user.tenant, cert):
+        flash(request, "Hinweis: " + services.SWITCH_HINT, "warn")
+    audit(session, user, "certificate.own.import", user.tenant_id, cert.id,
+          pass_type_identifier=cert.pass_type_identifier, activated=activate)
+    session.commit()
+    return back("/portal/certificate", request, f"Zertifikat {cert.pass_type_identifier} gespeichert, gültig bis "
+                                                f"{cert.expires_at:%d.%m.%Y}" + (" – ab jetzt aktiv." if activate else "."))
+
+
+@router.post("/certificate/activate")
+def certificate_activate(request: Request, certificate_id: str = Form(...), user: User = Depends(portal_user),
+                         session: Session = Depends(get_session)):
+    """Zwischen eigenen Zertifikaten und dem Standard-Zertifikat der Plattform wechseln."""
+    from ..models import Certificate
+
+    require(user, "settings")
+    t = user.tenant
+    cert = t.standard_certificate if certificate_id == "standard" else session.get(Certificate, certificate_id)
+    if cert is None or not cert.usable_by(t):
+        raise ServiceError(404, "Zertifikat nicht gefunden.")
+    if services.assign_certificate(session, t, cert):
+        flash(request, "Hinweis: " + services.SWITCH_HINT, "warn")
+    audit(session, user, "certificate.activate", t.id, cert.id, pass_type_identifier=cert.pass_type_identifier)
+    session.commit()
+    return back("/portal/certificate", request, f"Aktiv für neue Pässe: {cert.pass_type_identifier}")
+
+
 # ---------------------------------------------------------------- Einstellungen
 
 @router.get("/settings")

@@ -36,9 +36,13 @@ class Tenant(Base):
     contact_email: Mapped[str] = mapped_column(String(200), default="")
     review_note: Mapped[str] = mapped_column(Text, default="")
     certificate_id: Mapped[str | None] = mapped_column(ForeignKey("certificates.id"), nullable=True)
+    # Vom Admin zugeordnetes Standard-Zertifikat - Rückfall, wenn die Firma ihr eigenes deaktiviert.
+    standard_certificate_id: Mapped[str | None] = mapped_column(
+        ForeignKey("certificates.id", name="fk_tenant_standard_certificate"), nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
 
     certificate: Mapped["Certificate | None"] = relationship(foreign_keys=[certificate_id])
+    standard_certificate: Mapped["Certificate | None"] = relationship(foreign_keys=[standard_certificate_id])
 
 
 class ApiKey(Base):

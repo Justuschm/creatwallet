@@ -107,8 +107,8 @@ async def certificate_upload(tenant_id: str, request: Request, p12: UploadFile =
         session.rollback()
         return back(f"/admin/tenants/{t.id}/certificate", request, str(exc), "error")
     signers.forget(cert.pass_type_identifier)
-    if activate:
-        t.certificate = cert
+    if activate and services.assign_certificate(session, t, cert):
+        flash(request, "Hinweis: " + services.SWITCH_HINT, "warn")
     audit(session, user, "admin.certificate.own.import", t.id, cert.id, pass_type_identifier=cert.pass_type_identifier,
           activated=activate)
     session.commit()
