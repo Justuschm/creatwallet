@@ -95,3 +95,59 @@ def pass_logo(token: str, session: Session = Depends(get_session)):
         raise services.ServiceError(404, "Kein Logo.")
     return Response(p.template.approved_version.file_map()[name], media_type="image/png",
                     headers={"Cache-Control": "public, max-age=3600"})
+
+
+EMBED_JS = r"""/* Wallet-Pass-Button: <a data-wallet-pass href="PASS-SEITE">…</a>
+   iPhone/iPad: Link lädt den Pass direkt. Computer/Android: Klick zeigt einen QR-Code zum Scannen. */
+(function () {
+  var mobileApple = /iPhone|iPad|iPod/.test(navigator.userAgent) ||
+    (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);
+  var css = "a[data-wallet-pass]{display:inline-flex;align-items:center;gap:8px;background:#000;color:#fff;" +
+    "border-radius:10px;padding:10px 18px;font:600 15px -apple-system,BlinkMacSystemFont,sans-serif;" +
+    "text-decoration:none;border:1px solid #a6a6a6}a[data-wallet-pass]:hover{opacity:.9}" +
+    ".wp-qr{position:fixed;inset:0;background:rgba(0,0,0,.55);display:flex;align-items:center;" +
+    "justify-content:center;z-index:2147483647}.wp-qr div{background:#fff;color:#111;border-radius:16px;" +
+    "padding:22px;text-align:center;font:14px -apple-system,sans-serif;max-width:300px}" +
+    ".wp-qr img{width:220px;height:220px;display:block;margin:10px auto}.wp-qr button{margin-top:6px;" +
+    "border:0;background:#eee;border-radius:8px;padding:8px 14px;font:inherit;cursor:pointer}";
+  var style = document.createElement("style"); style.textContent = css; document.head.appendChild(style);
+  function init() {
+    var links = document.querySelectorAll("a[data-wallet-pass]");
+    for (var i = 0; i < links.length; i++) {
+      (function (a) {
+        if (a.dataset.wpReady) return; a.dataset.wpReady = "1";
+        var page = a.getAttribute("href");
+        if (mobileApple) { a.setAttribute("href", page.replace(/\/$/, "") + "/pass.pkpass"); return; }
+        a.addEventListener("click", function (e) {
+          e.preventDefault();
+          var box = document.createElement("div"); box.className = "wp-qr";
+          box.innerHTML = '<div><b>Mit dem iPhone scannen</b><img alt="QR-Code"><span>Kamera-App öffnen und den Code scannen – ' +
+            'dann „Zu Apple Wallet hinzufügen“ tippen.</span><br><button type="button">Schließen</button></div>';
+          box.querySelector("img").src = page.replace(/\/$/, "") + "/qr.svg";
+          box.addEventListener("click", function (ev) { if (ev.target === box || ev.target.tagName === "BUTTON") box.remove(); });
+          document.body.appendChild(box);
+        });
+      })(links[i]);
+    }
+  }
+  if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", init); else init();
+})();
+"""
+
+
+@router.get("/embed.js")
+def embed_js():
+    return Response(EMBED_JS, media_type="application/javascript; charset=utf-8",
+                    headers={"Cache-Control": "public, max-age=3600", "Access-Control-Allow-Origin": "*"})
+
+
+@router.get("/p/{token}/qr.svg")
+def pass_qr(token: str, request: Request, session: Session = Depends(get_session)):
+    """QR-Code der Pass-Seite - für den Einbett-Button am Computer."""
+    settings, _, _ = ctx(request)
+    _find(session, token)
+    import io
+    buf = io.BytesIO()
+    segno.make(f"{settings.public_base_url}/p/{token}", error="m").save(buf, kind="svg", scale=6, border=2)
+    return Response(buf.getvalue(), media_type="image/svg+xml",
+                    headers={"Cache-Control": "public, max-age=3600", "Access-Control-Allow-Origin": "*"})

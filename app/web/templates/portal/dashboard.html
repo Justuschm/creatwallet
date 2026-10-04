@@ -2,10 +2,10 @@
 {% set active = "dashboard" %}{% set title = "Übersicht" %}
 {% block content %}
 <div class="page-head">
-  <div><h1>Übersicht</h1><div class="sub">{{ tenant.name }} · Tarif {{ tenant.plan }}</div></div>
+  <div><h1>Übersicht</h1><div class="sub">{{ tenant.name }} · Tarif {{ u.plan.label }}</div></div>
   <div class="actions">
     {% if can("templates") %}<a class="btn" href="/portal/templates">{{ ui.icon("layers", 16) }} Vorlagen</a>{% endif %}
-    {% if can("passes") and tenant.status == "active" %}<a class="btn primary" href="/portal/passes/new">{{ ui.icon("plus", 16) }} Pass ausgeben</a>{% endif %}
+    {% if can("passes") and tenant.status == "active" %}<a class="btn" href="/portal/bulk">{{ ui.icon("list", 16) }} Massenausgabe</a><a class="btn primary" href="/portal/passes/new">{{ ui.icon("plus", 16) }} Pass ausgeben</a>{% endif %}
   </div>
 </div>
 
@@ -13,7 +13,9 @@
 {% elif tenant.status == "suspended" %}<div class="msg error">Dein Konto ist gesperrt{% if tenant.review_note %}: {{ tenant.review_note }}{% endif %}. Bereits ausgegebene Pässe bleiben gültig.</div>{% endif %}
 
 <div class="kpis">
-  <div class="kpi"><div class="l">Aktive Pässe</div><div class="n">{{ stats.active }}</div></div>
+  <div class="kpi"><a href="/portal/billing"><div class="l">Aktive Pässe{% if u.plan.included %} · Kontingent {{ u.plan.included }}{% endif %}</div>
+    <div class="n {{ 'err' if u.percent >= 100 else ('warn' if u.percent >= 80 else '') }}">{{ stats.active }}</div>
+    {% if u.plan.included %}<div style="height:5px;border-radius:99px;background:var(--code);margin-top:8px;overflow:hidden"><div style="height:100%;width:{{ [u.percent, 100] | min }}%;background:{{ 'var(--err)' if u.percent >= 100 else ('var(--warn)' if u.percent >= 80 else 'var(--accent)') }}"></div></div>{% endif %}</a></div>
   <div class="kpi"><div class="l">In Wallets installiert</div><div class="n">{{ stats.installed }}</div></div>
   <div class="kpi"><div class="l">Ausgegeben, letzte 30 Tage</div><div class="n">{{ stats.issued_30 }}</div></div>
   <div class="kpi"><div class="l">Vorlagen</div><div class="n">{{ stats.templates }}</div></div>
@@ -46,7 +48,7 @@
       <div class="card-h"><h2>Konto</h2>{{ ui.badge(tenant.status) }}</div>
       <table class="kv"><tbody>
         <tr><td>Name im Pass</td><td>{{ tenant.organization_name }}</td></tr>
-        <tr><td>Tarif</td><td>{{ tenant.plan }}</td></tr>
+        <tr><td>Tarif</td><td><a href="/portal/billing">{{ u.plan.label }}</a></td></tr>
         <tr><td>Zertifikat</td><td>{% if tenant.certificate %}{{ ui.cert_kind(tenant.certificate) }}<div class="small mono">{{ tenant.certificate.pass_type_identifier }}</div>{% else %}<span class="muted">wird bei der Freischaltung hinterlegt</span>{% endif %}</td></tr>
       </tbody></table>
     </div>

@@ -1,7 +1,8 @@
 {% extends "base.html" %}{% import "_ui.html" as ui %}
 {% set active = "settings" %}{% set title = "Einstellungen" %}
 {% block content %}
-<div class="page-head"><div><h1>Einstellungen</h1><div class="sub">Angaben zu deiner Firma.</div></div></div>
+<div class="page-head"><div><h1>Einstellungen</h1><div class="sub">Angaben zu deiner Firma.</div></div>
+  {% if can("settings") %}<div class="actions"><a class="btn" href="/portal/settings/export.zip">{{ ui.icon("download", 16) }} Datenexport</a></div>{% endif %}</div>
 <div class="cols">
   <div class="card">
     <div class="card-h"><h2>Firmendaten</h2></div>
@@ -26,6 +27,7 @@
       <tr><td>Zertifikat</td><td>{% if tenant.certificate %}{{ ui.cert_kind(tenant.certificate) }}<div class="small mono">{{ tenant.certificate.pass_type_identifier }}</div><div class="small">gültig bis {{ tenant.certificate.expires_at | d }}</div>{% else %}–{% endif %}</td></tr>
       <tr><td>Kunde seit</td><td>{{ tenant.created_at | d }}</td></tr>
     </tbody></table>
+    <div class="card-b small muted" style="border-top:1px solid var(--line)">Der Datenexport enthält Firmendaten, alle Vorlagen mit Bildern und eine Liste aller Pässe. Für die Löschung des Kontos wende dich an den Support.</div>
   </div>
 </div>
 {% endblock %}

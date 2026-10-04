@@ -140,8 +140,22 @@ def flash(request: Request, message, kind="ok"):
     request.session.setdefault("flash", []).append([kind, message])
 
 
+def _announcements(request):
+    from sqlalchemy import select
+
+    from ..models import Announcement
+
+    try:
+        with request.app.state.sessionmaker() as s:
+            return s.scalars(select(Announcement).where(Announcement.active.is_(True))
+                             .order_by(Announcement.created_at.desc()).limit(3)).all()
+    except Exception:  # noqa: BLE001 - Ankündigungen dürfen nie eine Seite verhindern
+        return []
+
+
 def render(request: Request, name, user=None, status_code=200, **ctx):
     messages = request.session.pop("flash", [])
+    ctx.setdefault("announcements", _announcements(request) if user else [])
     return templates.TemplateResponse(request, name, {
         "user": user, "csrf": csrf_token(request), "messages": messages, "ROLES": ROLES,
         "approval": request.app.state.settings.require_template_approval,

@@ -339,6 +339,24 @@ laufen nur auf `127.0.0.1` des Servers (Zugriff per SSH-Tunnel oder VPN, siehe K
 Die API liefert Messwerte unter `/metrics` (nur aus dem internen Netz oder mit `WALLET_METRICS_TOKEN`)
 und meldet unter `/readyz`, ob die Datenbank erreichbar ist.
 
+**Weitere Funktionen:**
+
+- **Massenausgabe** im Portal: CSV hochladen (Spalten = Platzhalter, optional `email` und `seriennummer`),
+  Vorschau, Ausgabe im Hintergrund, Ergebnisliste mit allen Links; auf Wunsch geht jeder Link per E-Mail raus.
+- **Tarife und Kontingente** (`app/plans.py`, Werte aus dem Masterplan): Seite „Abrechnung“ mit Verbrauch,
+  Warnmails bei 80 % und 100 %, hartes Limit im kostenlosen Tarif. Zahlung folgt (Stripe oder Mollie).
+- **E-Mail** über SMTP (`WALLET_SMTP_URL`): Einladungen, Pass-Links, Kontingent- und Zertifikatswarnungen.
+- **Zertifikate:** Standard (Plattform) oder eigenes der Firma, im Portal selbst hochzuladen – oder ohne Mac
+  über eine **Zertifikatsanfrage (CSR)**: Anfrage herunterladen, bei Apple hochladen, `pass.cer` zurückgeben.
+- **API:** Rate-Limit je Schlüssel (`WALLET_RATE_LIMIT_PER_MINUTE`), Protokoll der letzten Aufrufe im Portal.
+- **Einbett-Button:** `<script src="https://DOMAIN/embed.js" defer>` + `<a data-wallet-pass href="PAGE_URL">` –
+  iPhone lädt den Pass, am Computer erscheint ein QR-Code.
+- **Exporte:** Statistik als CSV, kompletter Datenexport der Firma als ZIP.
+- **Ankündigungen** vom Admin an alle Firmen; **tägliche Wartung** im Worker (Verbrauch, Warnungen, Aufräumen;
+  manuell `python -m app daily`).
+- **Sicherung:** `deploy/backup/backup.sh` (restic, verschlüsselt, Dumps werden gestreamt),
+  Wiederherstellung in `deploy/backup/RESTORE.md`.
+
 **Vorlagen-Freigabe:** standardmäßig aus – Firmen speichern Vorlagen und nutzen sie sofort. Mit
 `WALLET_REQUIRE_TEMPLATE_APPROVAL=true` muss jede neue Version erst im Admin-Bereich freigegeben werden.
 Neue *Firmen* schaltest du immer selbst frei.
@@ -369,6 +387,9 @@ Authentik, Caddy mit automatischem HTTPS für Plattform- und Login-Domain) und `
 | `WALLET_DEV_LOGIN` | nur lokal: Anmeldung ohne Authentik |
 | `WALLET_SENTRY_DSN` | Fehlerberichte an GlitchTip (DSN aus dem GlitchTip-Projekt) |
 | `WALLET_METRICS_TOKEN` | Zugriff auf `/metrics` von außerhalb des internen Netzes |
+| `WALLET_SMTP_URL`, `WALLET_MAIL_FROM` | E-Mail-Versand (ohne URL werden Mails nur protokolliert) |
+| `WALLET_ENFORCE_PLAN_LIMITS` | Tarifgrenzen durchsetzen (Standard `true`) |
+| `WALLET_RATE_LIMIT_PER_MINUTE` | API-Anfragen je Schlüssel und Minute (Standard 600, 0 = aus) |
 
 Für den Livebetrieb den Button auf der Download-Seite durch Apples offizielles
 „Add to Apple Wallet“-Badge ersetzen (Apple-Richtlinien).

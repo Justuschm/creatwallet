@@ -18,7 +18,9 @@ from .core import admin_user, audit, check_csrf, flash
 from .core import render as _render
 
 router = APIRouter(prefix="/admin", include_in_schema=False, dependencies=[Depends(check_csrf)])
-PLANS = ("free", "starter", "business", "pro", "enterprise")
+from .. import plans as plan_defs  # noqa: E402
+
+PLANS = tuple(plan_defs.PLANS)
 
 
 def render(request, name, user, **ctx):
@@ -185,11 +187,96 @@ def review_test_pass(version_id: str, request: Request, user: User = Depends(adm
 
 @router.get("/certificates")
 def certificates(request: Request, user: User = Depends(admin_user), session: Session = Depends(get_session)):
+    from ..models import CertificateRequest
+
     certs = session.scalars(select(Certificate).order_by(Certificate.expires_at)).all()
     usage = dict(session.execute(select(Tenant.certificate_id, func.count(Tenant.id))
                                  .group_by(Tenant.certificate_id)).all())
     names = dict(session.execute(select(Tenant.id, Tenant.name)).all())
-    return render(request, "admin/certificates.html", user, certs=certs, usage=usage, names=names, now=utcnow())
+    requests = session.scalars(select(CertificateRequest).where(CertificateRequest.owner_tenant_id.is_(None),
+                                                                CertificateRequest.status == "open")
+                               .order_by(CertificateRequest.created_at.desc())).all()
+    return render(request, "admin/certificates.html", user, certs=certs, usage=usage, names=names, now=utcnow(),
+                  requests=requests)
+
+
+@router.post("/certificates/request")
+def certificate_request(request: Request, label: str = Form(""), user: User = Depends(admin_user),
+                        session: Session = Depends(get_session)):
+    from .. import csr
+
+    req = csr.create_request(session, ctx(request)[2], label.strip() or "Wallet-Pass-Plattform", None, user.email)
+    audit(session, user, "admin.certificate.request", None, req.id)
+    session.commit()
+    return back("/admin/certificates", request, "Zertifikatsanfrage erstellt.")
+
+
+@router.get("/certificates/request/{req_id}.certSigningRequest")
+def certificate_request_download(req_id: str, user: User = Depends(admin_user), session: Session = Depends(get_session)):
+    from ..models import CertificateRequest
+
+    req = session.get(CertificateRequest, req_id)
+    if req is None or req.owner_tenant_id is not None:
+        raise ServiceError(404, "Anfrage nicht gefunden.")
+    return Response(req.csr_pem, media_type="application/pkcs10",
+                    headers={"Content-Disposition": 'attachment; filename="wallet.certSigningRequest"'})
+
+
+@router.post("/certificates/request/{req_id}/complete")
+async def certificate_request_complete(req_id: str, request: Request, cer: UploadFile = File(...),
+                                       user: User = Depends(admin_user), session: Session = Depends(get_session)):
+    from .. import csr
+    from ..models import CertificateRequest
+
+    req = session.get(CertificateRequest, req_id)
+    if req is None or req.owner_tenant_id is not None:
+        raise ServiceError(404, "Anfrage nicht gefunden.")
+    settings, signers, vault = ctx(request)
+    try:
+        cert = csr.complete_request(session, vault, signers.store, settings.wwdr_path, req, (await cer.read())[:100_000])
+    except CertStoreError as exc:
+        session.rollback()
+        return back("/admin/certificates", request, str(exc), "error")
+    signers.forget(cert.pass_type_identifier)
+    audit(session, user, "admin.certificate.import", None, cert.id, pass_type_identifier=cert.pass_type_identifier,
+          via="csr")
+    session.commit()
+    return back("/admin/certificates", request, f"Standard-Zertifikat {cert.pass_type_identifier} eingerichtet.")
+
+
+# ---------------------------------------------------------------- Ankündigungen
+
+@router.get("/announcements")
+def announcements(request: Request, user: User = Depends(admin_user), session: Session = Depends(get_session)):
+    from ..models import Announcement
+
+    rows = session.scalars(select(Announcement).order_by(Announcement.created_at.desc()).limit(50)).all()
+    return render(request, "admin/announcements.html", user, rows=rows)
+
+
+@router.post("/announcements")
+def announcement_create(request: Request, text: str = Form(...), level: str = Form("info"),
+                        user: User = Depends(admin_user), session: Session = Depends(get_session)):
+    from ..models import Announcement
+
+    a = Announcement(text=text.strip()[:1000], level="warn" if level == "warn" else "info")
+    session.add(a)
+    audit(session, user, "admin.announcement.create", None, a.id, text=a.text[:120])
+    session.commit()
+    return back("/admin/announcements", request, "Ankündigung ist für alle Firmen sichtbar.")
+
+
+@router.post("/announcements/{ann_id}/toggle")
+def announcement_toggle(ann_id: str, request: Request, user: User = Depends(admin_user),
+                        session: Session = Depends(get_session)):
+    from ..models import Announcement
+
+    a = session.get(Announcement, ann_id)
+    if a is None:
+        raise ServiceError(404, "Ankündigung nicht gefunden.")
+    a.active = not a.active
+    session.commit()
+    return back("/admin/announcements", request, "Eingeblendet." if a.active else "Ausgeblendet.")
 
 
 @router.post("/certificates")

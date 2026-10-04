@@ -52,7 +52,8 @@ def create_app(settings=None, engine=None, signers=None):
         if request.url.path.startswith(("/portal", "/admin")) and "json" not in request.headers.get("accept", ""):
             from ..web import html_error
             return html_error(request, exc)
-        headers = {"WWW-Authenticate": "Bearer"} if exc.status == 401 else None
+        headers = {"WWW-Authenticate": "Bearer"} if exc.status == 401 else {}
+        headers.update(exc.headers)
         return JSONResponse({"error": exc.message, "issues": issues_json(exc.issues)}, status_code=exc.status,
                             headers=headers)
 
@@ -68,6 +69,21 @@ def create_app(settings=None, engine=None, signers=None):
         if length and length.isdigit() and int(length) > settings.max_request_bytes:
             return JSONResponse({"error": "Anfrage zu groß.", "issues": []}, status_code=413)
         return await call_next(request)
+
+    @app.middleware("http")
+    async def api_log(request: Request, call_next):
+        """Aufrufe mit API-Schlüssel protokollieren (Portal: Einbinden -> Protokoll)."""
+        start = time.perf_counter()
+        response = await call_next(request)
+        info = getattr(request.state, "api_log", None)
+        if info:
+            from ..models import ApiRequestLog
+            with app.state.sessionmaker() as s:
+                s.add(ApiRequestLog(tenant_id=info[0], key_prefix=info[1], method=request.method,
+                                    path=request.url.path[:300], status=response.status_code,
+                                    duration_ms=int((time.perf_counter() - start) * 1000)))
+                s.commit()
+        return response
 
     @app.middleware("http")
     async def measure(request: Request, call_next):

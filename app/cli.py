@@ -176,13 +176,23 @@ def cmd_worker(args):
     init_error_reporting(settings.sentry_dsn, settings.environment, "worker")
     start_worker_metrics(settings.worker_metrics_port)
     Session = make_sessionmaker(make_engine(settings.database_url))
+    from .certs import SignerProvider
+
     store = make_store(settings)
     worker = Worker(Session, settings, Vault(settings.secret_key),
-                    ApnsPusher(store, settings.apns_host, settings.apns_push_type))
+                    ApnsPusher(store, settings.apns_host, settings.apns_push_type),
+                    signers=SignerProvider(store, settings.wwdr_path))
     if args.once:
         print(f"{worker.run_until_empty()} Jobs erledigt.")
     else:
         worker.run_forever()
+
+
+def cmd_daily(args):
+    from .maintenance import run_daily
+
+    settings, s = _session()
+    print(run_daily(s, settings, force=True))
 
 
 def cmd_jobs(args):
@@ -327,6 +337,7 @@ def main(argv=None):
     w.add_argument("--once", action="store_true", help="nur fällige Jobs abarbeiten und beenden")
     w.set_defaults(func=cmd_worker)
     sub.add_parser("jobs", help="Status der Hintergrundaufgaben").set_defaults(func=cmd_jobs)
+    sub.add_parser("daily", help="Tägliche Wartung jetzt ausführen").set_defaults(func=cmd_daily)
     sub.add_parser("seed-demo", help="Beispieldaten für den lokalen Testserver").set_defaults(func=cmd_seed_demo)
 
     args = p.parse_args(argv)

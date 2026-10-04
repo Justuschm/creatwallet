@@ -1,0 +1,66 @@
+{% extends "base.html" %}{% import "_ui.html" as ui %}
+{% set active = "bulk" %}{% set title = "Massenausgabe" %}
+{% block content %}
+<div class="page-head">
+  <div><h1>Massenausgabe</h1><div class="sub">Viele Pässe auf einmal aus einer CSV-Datei – z. B. aus Excel exportiert.</div></div>
+  {% if can("passes") and templates %}<div class="actions"><button class="primary" data-open="upload">{{ ui.icon("plus", 16) }} CSV hochladen</button></div>{% endif %}
+</div>
+
+{% set draft = (runs | selectattr("id", "equalto", preview) | first) if preview else none %}
+{% if draft %}
+<div class="card" style="margin-bottom:20px">
+  <div class="card-h"><h2>Vorschau: {{ draft.total }} Zeilen für „{{ draft.template.name }}“</h2>
+    <div class="row-actions">
+      <form method="post" action="/portal/bulk/{{ draft.id }}/cancel" class="inline"><input type="hidden" name="csrf" value="{{ csrf }}"><button>Verwerfen</button></form>
+      <form method="post" action="/portal/bulk/{{ draft.id }}/start" class="inline"><input type="hidden" name="csrf" value="{{ csrf }}"><button class="primary">{{ draft.total }} Pässe ausgeben</button></form>
+    </div></div>
+  {% set cols = draft.rows[0].keys() | list %}
+  <table><thead><tr><th>Zeile</th>{% for c in cols %}<th>{{ c }}</th>{% endfor %}</tr></thead>
+    <tbody>{% for r in draft.rows[:5] %}<tr><td class="muted">{{ loop.index + 1 }}</td>{% for c in cols %}<td class="small">{{ r.get(c, "") }}</td>{% endfor %}</tr>{% endfor %}</tbody></table>
+  <div class="card-b small muted" style="border-top:1px solid var(--line)">{% if draft.total > 5 %}… und {{ draft.total - 5 }} weitere Zeilen. {% endif %}
+    {% if draft.send_emails %}Jede Zeile mit E-Mail-Adresse bekommt ihren Link per Mail.{% else %}Es werden keine E-Mails verschickt – die Links stehen danach in der Ergebnisliste.{% endif %}</div>
+</div>
+{% endif %}
+
+<div class="cols">
+  <div class="card">
+    <div class="card-h"><h2>Bisherige Massenausgaben</h2></div>
+    {% set shown = runs | rejectattr("status", "equalto", "draft") | list %}
+    {% if shown %}
+    <table><thead><tr><th>Datei</th><th>Vorlage</th><th>Status</th><th class="right">Ergebnis</th><th class="right">Gestartet</th><th></th></tr></thead>
+      <tbody>{% for r in shown %}<tr>
+        <td>{{ r.filename or "CSV" }}<div class="small muted">{{ r.created_by }}</div></td><td>{{ r.template.name }}</td>
+        <td>{{ ui.badge(r.status) }}</td>
+        <td class="right">{{ r.done }} / {{ r.total }}{% if r.failed %} <span class="err-text">· {{ r.failed }} Fehler</span>{% endif %}</td>
+        <td class="right small nowrap">{{ r.created_at | dt }}</td>
+        <td class="right">{% if r.results %}<a class="btn small" href="/portal/bulk/{{ r.id }}/ergebnis.csv">{{ ui.icon("download", 14) }} Liste</a>{% endif %}</td></tr>{% endfor %}</tbody></table>
+    {% else %}{{ ui.empty("Noch keine Massenausgabe.", "Die Ergebnisliste enthält zu jeder Zeile den Link für den Kunden.") }}{% endif %}
+  </div>
+  <div class="card">
+    <div class="card-h"><h2>So muss die CSV aussehen</h2></div>
+    <div class="card-b small">
+      <ul class="steps">
+        <li>Erste Zeile: Spaltennamen = die Platzhalter der Vorlage (z. B. <code>name</code>, <code>platz</code>).</li>
+        <li>Optional: <code>email</code> – dann kann jeder Kunde seinen Link per Mail bekommen.</li>
+        <li>Optional: <code>seriennummer</code> – sonst vergeben wir eine.</li>
+        <li>Trennzeichen <code>;</code> oder <code>,</code>, bis zu 5000 Zeilen.</li>
+      </ul>
+      {% if templates %}<p class="muted">Leere Beispieldatei je Vorlage:</p>
+      <div class="chips">{% for t in templates %}<a class="btn small" href="/portal/bulk/vorlage.csv?template_id={{ t.id }}">{{ ui.icon("download", 13) }} {{ t.name }}</a>{% endfor %}</div>{% endif %}
+    </div>
+  </div>
+</div>
+
+{% if can("passes") and templates %}
+{% call ui.dialog("upload", "CSV hochladen") %}
+<form method="post" action="/portal/bulk/preview" enctype="multipart/form-data">
+  <input type="hidden" name="csrf" value="{{ csrf }}">
+  <label class="f">Vorlage<select name="template_id">{% for t in templates %}<option value="{{ t.id }}">{{ t.name }}</option>{% endfor %}</select></label>
+  <label class="f">CSV-Datei<input type="file" name="file" accept=".csv,text/csv" required></label>
+  <label class="check"><input type="checkbox" name="send_emails" value="true" {{ "disabled" if not mail_enabled }}> Links per E-Mail an die Spalte <code>email</code> schicken{% if not mail_enabled %} <span class="muted">(E-Mail-Versand nicht eingerichtet)</span>{% endif %}</label>
+  <p class="small muted">Im nächsten Schritt siehst du eine Vorschau und startest die Ausgabe.</p>
+  <div class="foot"><button type="button" data-close>Abbrechen</button><button class="primary">Weiter zur Vorschau</button></div>
+</form>
+{% endcall %}
+{% endif %}
+{% endblock %}

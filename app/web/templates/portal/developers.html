@@ -6,6 +6,7 @@
   <div class="actions"><a class="btn" href="/docs" target="_blank" rel="noopener">{{ ui.icon("external", 16) }} API-Referenz</a></div>
 </div>
 
+{% if not api_allowed %}<div class="msg warn">Die API ist in deinem Tarif nicht enthalten – Pässe kannst du im Portal einzeln ausgeben. <a href="/portal/billing">Tarife ansehen</a></div>{% endif %}
 {% if new_key %}<div class="msg warn"><b>Neuer API-Schlüssel</b> – jetzt kopieren, er wird nicht noch einmal angezeigt:<div class="secret">{{ new_key }}</div></div>{% endif %}
 {% if new_secret %}<div class="msg warn"><b>Webhook-Geheimnis</b> – jetzt kopieren, zum Prüfen der Signatur:<div class="secret">{{ new_secret }}</div></div>{% endif %}
 
@@ -60,14 +61,24 @@
     <div class="card">
       <div class="card-h"><h2>Button auf deiner Website</h2></div>
       <div class="card-b">
-<pre>&lt;a href="PAGE_URL_AUS_DER_ANTWORT"&gt;
-  &lt;img src="add-to-apple-wallet.svg"
-       alt="Zu Apple Wallet hinzufügen" height="48"&gt;
+<pre>&lt;script src="{{ base }}/embed.js" defer&gt;&lt;/script&gt;
+&lt;a data-wallet-pass href="PAGE_URL_AUS_DER_ANTWORT"&gt;
+  Zu Apple Wallet hinzufügen
 &lt;/a&gt;</pre>
-        <p class="small muted">Das offizielle Badge „Add to Apple Wallet“ stellt Apple bereit; bitte Apples Gestaltungsregeln beachten.</p>
+        <p class="small muted">Das Skript macht aus dem Link einen Button. Auf dem iPhone lädt er den Pass direkt, am Computer zeigt er einen QR-Code zum Scannen. Für den Livebetrieb kannst du statt des Textes Apples offizielles Badge „Add to Apple Wallet“ einsetzen.</p>
       </div>
     </div>
   </div>
+</div>
+
+<div class="card" style="margin-top:20px">
+  <div class="card-h"><h2>Protokoll</h2><span class="hint">die letzten 100 API-Aufrufe (30 Tage gespeichert)</span></div>
+  {% if calls %}
+  <table><thead><tr><th>Zeit</th><th>Aufruf</th><th>Antwort</th><th class="right">Dauer</th><th>Schlüssel</th></tr></thead>
+    <tbody>{% for c in calls %}<tr><td class="small nowrap">{{ c.created_at | dt }}</td><td class="mono small">{{ c.method }} {{ c.path }}</td>
+      <td><span class="badge {{ 'done' if c.status < 400 else ('pending' if c.status < 500 else 'failed') }}">{{ c.status }}</span></td>
+      <td class="right small">{{ c.duration_ms }} ms</td><td class="mono small">wk_{{ c.key_prefix }}_…</td></tr>{% endfor %}</tbody></table>
+  {% else %}{{ ui.empty("Noch keine API-Aufrufe.") }}{% endif %}
 </div>
 
 {% if can("keys") %}

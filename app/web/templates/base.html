@@ -119,7 +119,8 @@
   .chips { display: flex; flex-wrap: wrap; gap: 6px; }
   .chips code { background: var(--accent-soft); color: var(--accent-text); }
   .msg { padding: 11px 14px; border-radius: 10px; margin-bottom: 16px; background: var(--ok-soft); color: var(--ok); border: 1px solid color-mix(in srgb, currentColor 20%, transparent); }
-  .msg.error { background: var(--err-soft); color: var(--err); } .msg.warn { background: var(--warn-soft); color: var(--warn); }
+  .msg.error { background: var(--err-soft); color: var(--err); }
+  .msg.info { background: var(--accent-soft); color: var(--accent-text); } .msg.warn { background: var(--warn-soft); color: var(--warn); }
   .secret { font-family: ui-monospace, monospace; background: var(--code); color: var(--text); padding: 10px 12px; border-radius: 8px; word-break: break-all; margin-top: 8px; user-select: all; }
   .empty { text-align: center; padding: 34px 20px; color: var(--muted); } .empty p { margin: 4px 0; }
   .issues { margin: 0; padding-left: 18px; } .issues li { margin-bottom: 6px; }
@@ -186,17 +187,20 @@
       <div class="group">Betrieb</div>
       <a class="item {{ 'on' if active == 'jobs' }}" href="/admin/jobs">{{ ui.icon("list") }} Jobs</a>
       <a class="item {{ 'on' if active == 'audit' }}" href="/admin/audit">{{ ui.icon("shield") }} Audit-Log</a>
+      <a class="item {{ 'on' if active == 'announcements' }}" href="/admin/announcements">{{ ui.icon("activity") }} Ankündigungen</a>
       <span class="spacer"></span>
       {% if user and user.tenant_id %}<a class="item" href="/portal">{{ ui.icon("home") }} Zum Portal</a>{% endif %}
     {% else %}
       <a class="item {{ 'on' if active == 'dashboard' }}" href="/portal">{{ ui.icon("home") }} Übersicht</a>
       <a class="item {{ 'on' if active == 'templates' }}" href="/portal/templates">{{ ui.icon("layers") }} Vorlagen</a>
       <a class="item {{ 'on' if active == 'passes' }}" href="/portal/passes">{{ ui.icon("ticket") }} Pässe</a>
+      <a class="item {{ 'on' if active == 'bulk' }}" href="/portal/bulk">{{ ui.icon("list") }} Massenausgabe</a>
       <a class="item {{ 'on' if active == 'stats' }}" href="/portal/stats">{{ ui.icon("chart") }} Statistik</a>
       <div class="group">Konto</div>
       <a class="item {{ 'on' if active == 'developers' }}" href="/portal/developers">{{ ui.icon("plug") }} Einbinden</a>
       <a class="item {{ 'on' if active == 'team' }}" href="/portal/team">{{ ui.icon("users") }} Team</a>
       <a class="item {{ 'on' if active == 'certificate' }}" href="/portal/certificate">{{ ui.icon("key") }} Zertifikat</a>
+      <a class="item {{ 'on' if active == 'billing' }}" href="/portal/billing">{{ ui.icon("wallet") }} Abrechnung</a>
       <a class="item {{ 'on' if active == 'settings' }}" href="/portal/settings">{{ ui.icon("settings") }} Einstellungen</a>
       <span class="spacer"></span>
       {% if user and user.is_admin %}<a class="item" href="/admin">{{ ui.icon("shield") }} Admin-Bereich</a>{% endif %}
@@ -205,6 +209,7 @@
       <a href="/auth/logout">{{ ui.icon("logout", 15) }} Abmelden</a></div>{% endif %}
   </nav>
   <main>
+    {% if area != "admin" %}{% for a in announcements %}<div class="msg {{ 'warn' if a.level == 'warn' else 'info' }}">{{ a.text }}</div>{% endfor %}{% endif %}
     {% for kind, text in messages %}<div class="msg {{ kind }}">{{ text }}</div>{% endfor %}
     {% block content %}{% endblock %}
   </main>

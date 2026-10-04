@@ -2,7 +2,22 @@
 {% set area = "admin" %}{% set active = "certificates" %}{% set title = "Zertifikate" %}
 {% block content %}
 <div class="page-head"><div><h1>Zertifikate</h1><div class="sub">Standard-Zertifikate aus deinem Apple-Account und eigene Zertifikate von Firmen. Private Schlüssel liegen verschlüsselt im Zertifikatsspeicher.</div></div>
-  <div class="actions"><button class="primary" data-open="upload">{{ ui.icon("plus", 16) }} Standard-Zertifikat hochladen</button></div></div>
+  <div class="actions">
+    <form method="post" action="/admin/certificates/request" class="inline"><input type="hidden" name="csrf" value="{{ csrf }}"><button>{{ ui.icon("key", 16) }} Zertifikatsanfrage erstellen</button></form>
+    <button class="primary" data-open="upload">{{ ui.icon("plus", 16) }} Standard-Zertifikat hochladen</button></div></div>
+{% for r in requests %}
+<div class="card" style="margin-bottom:20px">
+  <div class="card-h"><h2>Offene Zertifikatsanfrage</h2><span class="hint">erstellt {{ r.created_at | dt }}</span></div>
+  <div class="card-b">
+    <ol class="steps small">
+      <li><a class="btn small" href="/admin/certificates/request/{{ r.id }}.certSigningRequest">{{ ui.icon("download", 13) }} Anfrage herunterladen</a></li>
+      <li>Bei Apple die Pass Type ID öffnen → „Create Certificate“ → Datei hochladen → <code>pass.cer</code> herunterladen.</li>
+      <li><form method="post" action="/admin/certificates/request/{{ r.id }}/complete" enctype="multipart/form-data" style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">
+        <input type="hidden" name="csrf" value="{{ csrf }}"><input type="file" name="cer" accept=".cer,.pem" required style="max-width:320px"><button class="primary small">pass.cer hochladen</button></form></li>
+    </ol>
+  </div>
+</div>
+{% endfor %}
 <div class="cols">
   <div class="card">
     {% if certs %}
@@ -15,7 +30,7 @@
   <div class="card"><div class="card-h"><h2>Neues Zertifikat</h2></div>
     <div class="card-b"><ol class="steps small">
       <li>Im <a href="https://developer.apple.com/account/resources/identifiers/list/passTypeId" target="_blank" rel="noopener">Apple-Developer-Portal</a> eine Pass Type ID anlegen, z. B. <code>pass.de.deinedienst.firma</code>.</li>
-      <li>Zertifikat erzeugen, herunterladen und in der Schlüsselbundverwaltung mit Schlüssel als <code>.p12</code> exportieren.</li>
+      <li>Zertifikat erzeugen, herunterladen und in der Schlüsselbundverwaltung mit Schlüssel als <code>.p12</code> exportieren – oder ohne Mac über „Zertifikatsanfrage erstellen“.</li>
       <li>Hier hochladen. Gleiche Pass Type ID ersetzt das alte Zertifikat ohne Ausfall.</li></ol>
       <p class="small muted">Eigene Zertifikate einer Firma lädst du im Firmenbereich unter „Zertifikat“ hoch.</p></div></div>
 </div>

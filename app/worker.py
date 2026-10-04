@@ -12,7 +12,7 @@ from datetime import timedelta
 import httpx
 from sqlalchemy import delete, select, update
 
-from . import apns, jobs, metrics, webhooks
+from . import apns, bulk, jobs, mailer, maintenance, metrics, plans, webhooks
 from .models import Device, Job, Pass, WebhookEndpoint, utcnow
 
 log = logging.getLogger("wallet.worker")
@@ -27,11 +27,13 @@ class Retry(Exception):
 
 
 class Worker:
-    def __init__(self, sessionmaker, settings, vault, pusher, http_client=None):
+    def __init__(self, sessionmaker, settings, vault, pusher, http_client=None, signers=None, mail=None):
         self.Session = sessionmaker
         self.settings = settings
         self.vault = vault
         self.pusher = pusher
+        self.signers = signers
+        self.mailer = mail or mailer.Mailer(settings.smtp_url, settings.mail_from)
         self.http = http_client or httpx.Client(timeout=10)
         self._last_maintenance = 0.0
 
@@ -68,6 +70,8 @@ class Worker:
                       .values(status="pending"))
             s.execute(delete(Job).where(Job.status == "done", Job.updated_at < now - KEEP_DONE))
             s.commit()
+            if maintenance.due(s):
+                maintenance.run_daily(s, self.settings)
 
     def _claim(self, s):
         q = (select(Job).where(Job.status == "pending", Job.run_after <= utcnow())
@@ -89,7 +93,8 @@ class Worker:
             if job is None:
                 return False
             try:
-                handler = {jobs.PUSH: self._push, jobs.WEBHOOK: self._webhook}[job.kind]
+                handler = {jobs.PUSH: self._push, jobs.WEBHOOK: self._webhook, mailer.EMAIL: self._email,
+                           bulk.BULK: self._bulk}[job.kind]
                 handler(s, job.payload)
             except Retry as exc:
                 s.rollback()
@@ -123,6 +128,9 @@ class Worker:
         p = s.get(Pass, payload["pass_id"])
         cert = (p.certificate or p.tenant.certificate) if p is not None else None
         if cert is None:
+            return
+        if not plans.allows(p.tenant, "push_updates", self.settings):
+            log.info("Push für Pass %s übersprungen: Tarif ohne Updates per Push", p.id)
             return
         regs = list(p.registrations)
         if payload.get("device_ids") is not None:
@@ -164,6 +172,20 @@ class Worker:
         metrics.WEBHOOK_DELIVERIES.labels("ok" if ok else "error").inc()
         if not ok:
             raise Retry(error)
+
+
+    # ------------------------------------------------------------ E-Mail und Massenausgabe
+
+    def _email(self, s, payload):
+        try:
+            self.mailer.send(payload["to"], payload["subject"], payload["text"])
+        except mailer.MailError as exc:
+            raise Retry(str(exc)) from exc
+
+    def _bulk(self, s, payload):
+        if self.signers is None:
+            raise Retry("Worker ohne Zertifikatszugriff gestartet")
+        bulk.process(s, payload["bulk_id"], self.settings, self.signers, self.vault)
 
 
 def _remove_orphan_devices(s):

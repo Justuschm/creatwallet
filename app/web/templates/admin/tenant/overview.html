@@ -2,7 +2,8 @@
 {% block tenant %}
 {% if t.status == "pending" and not t.certificate %}<div class="msg warn">Vor dem Freischalten ein <a href="/admin/tenants/{{ t.id }}/certificate">Zertifikat zuordnen</a> – sonst kann die Firma keine Pässe ausgeben.</div>{% endif %}
 <div class="kpis">
-  <div class="kpi"><div class="l">Aktive Pässe</div><div class="n">{{ stats.active }}</div></div>
+  <div class="kpi"><div class="l">Aktive Pässe{% if u.plan.included %} · Kontingent {{ u.plan.included }}{% endif %}</div><div class="n {{ 'err' if u.percent >= 100 else ('warn' if u.percent >= 80 else '') }}">{{ stats.active }}</div>
+    {% if u.plan.included %}<div class="small muted">{{ u.percent }} % · Höchststand {{ u.peak }}</div>{% endif %}</div>
   <div class="kpi"><div class="l">In Wallets installiert</div><div class="n">{{ stats.installed }}</div></div>
   <div class="kpi"><div class="l">Gesperrte Pässe</div><div class="n">{{ stats.voided }}</div></div>
   <div class="kpi"><a href="/admin/tenants/{{ t.id }}/templates"><div class="l">Vorlagen</div><div class="n">{{ counts.templates }}</div></a></div>
@@ -39,11 +40,11 @@
       {% else %}<div class="card-b"><p class="muted">Kein Zertifikat zugeordnet.</p><a class="btn small primary" href="/admin/tenants/{{ t.id }}/certificate">Zertifikat zuordnen</a></div>{% endif %}
     </div>
     <div class="card">
-      <div class="card-h"><h2>Tarif</h2></div>
+      <div class="card-h"><h2>Tarif</h2>{% if u.cost is not none %}<span class="hint">diesen Monat ca. {{ "%.2f €" | format(u.cost) }}</span>{% endif %}</div>
       <div class="card-b">
         <form method="post" action="/admin/tenants/{{ t.id }}/plan" style="display:flex;gap:8px">
           <input type="hidden" name="csrf" value="{{ csrf }}">
-          <select name="plan" aria-label="Tarif">{% for p in plans %}<option {{ "selected" if p == t.plan }}>{{ p }}</option>{% endfor %}</select>
+          <select name="plan" aria-label="Tarif">{% for p in plans %}<option value="{{ p }}" {{ "selected" if p == t.plan }}>{{ plan_labels[p] }}</option>{% endfor %}</select>
           <button>Speichern</button>
         </form>
       </div>

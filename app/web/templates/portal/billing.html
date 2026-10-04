@@ -1,0 +1,37 @@
+{% extends "base.html" %}{% import "_ui.html" as ui %}
+{% set active = "billing" %}{% set title = "Abrechnung" %}
+{% block content %}
+<div class="page-head"><div><h1>Abrechnung</h1><div class="sub">Tarif, Verbrauch im {{ u.month_label }} und was er kostet.</div></div></div>
+<div class="kpis">
+  <div class="kpi"><div class="l">Tarif</div><div class="n" style="font-size:22px">{{ u.plan.label }}</div></div>
+  <div class="kpi"><div class="l">Aktive Pässe jetzt</div><div class="n">{{ u.active }}{% if u.plan.included %}<span class="muted" style="font-size:15px;font-weight:500"> / {{ u.plan.included }}</span>{% endif %}</div></div>
+  <div class="kpi"><div class="l">Höchststand diesen Monat</div><div class="n">{{ u.peak }}</div></div>
+  <div class="kpi"><div class="l">Voraussichtlich diesen Monat</div><div class="n" style="font-size:22px">{{ "%.2f €" | format(u.cost) if u.cost is not none else "nach Angebot" }}</div>
+    {% if u.extra %}<div class="small muted">inkl. {{ u.extra }} zusätzliche Pässe</div>{% endif %}</div>
+</div>
+{% if u.plan.included %}
+<div class="card" style="margin-bottom:20px"><div class="card-b">
+  <div style="display:flex;justify-content:space-between" class="small"><span>Kontingent</span><span>{{ u.percent }} %</span></div>
+  <div style="height:10px;border-radius:99px;background:var(--code);margin-top:6px;overflow:hidden">
+    <div style="height:100%;width:{{ [u.percent, 100] | min }}%;background:{{ 'var(--err)' if u.percent >= 100 else ('var(--warn)' if u.percent >= 80 else 'var(--accent)') }}"></div></div>
+  {% if u.plan.hard_limit and u.percent >= 100 %}<p class="small err-text">Kontingent erreicht – neue Pässe erst nach Tarifwechsel oder nach dem Sperren alter Pässe.</p>{% endif %}
+</div></div>
+{% endif %}
+<div class="card">
+  <div class="card-h"><h2>Tarife</h2><span class="hint">Preise netto pro Monat · Wechsel bitte über den Support</span></div>
+  <table>
+    <thead><tr><th>Tarif</th><th class="right">Preis</th><th class="right">Aktive Pässe</th><th class="right">Jeder weitere</th><th>Enthalten</th></tr></thead>
+    <tbody>{% for key, p in plans.items() %}
+    <tr {% if key == tenant.plan %}style="background:var(--accent-soft)"{% endif %}>
+      <td><b>{{ p.label }}</b>{% if key == tenant.plan %} <span class="badge active">dein Tarif</span>{% endif %}</td>
+      <td class="right">{{ ("%d €" | format(p.price_month)) if p.price_month is not none else "nach Angebot" }}</td>
+      <td class="right">{{ p.included if p.included is not none else "individuell" }}</td>
+      <td class="right">{{ ("%.2f €" | format(p.overage)) if p.overage else "–" }}</td>
+      <td><div class="chips">{% for f in p.features | sort %}<code>{{ labels[f] }}</code>{% endfor %}
+        {% if p.max_templates %}<span class="small muted">{{ p.max_templates }} Vorlage(n)</span>{% endif %}
+        {% if p.max_users %}<span class="small muted">{{ p.max_users }} Zugänge</span>{% endif %}</div></td></tr>
+    {% endfor %}</tbody>
+  </table>
+  <div class="card-b small muted" style="border-top:1px solid var(--line)">Rechnungen und Zahlung per Lastschrift folgen in Kürze. „Aktiv“ heißt: ausgegeben und nicht gesperrt; abgerechnet wird der Höchststand im Monat.</div>
+</div>
+{% endblock %}

@@ -55,6 +55,13 @@ class Settings:
     dev_login: bool = False
     # Neue Firmen dürfen sich selbst registrieren (sonst nur per Einladung)
     allow_signup: bool = True
+    # E-Mail-Versand (z. B. smtp://benutzer:passwort@mail.example.de:587) und Absender
+    smtp_url: str = ""
+    mail_from: str = "Wallet-Pass-Plattform <noreply@localhost>"
+    # Tarifgrenzen durchsetzen (im Betrieb an, in Tests standardmäßig aus)
+    enforce_plan_limits: bool = False
+    # API-Anfragen je Schlüssel und Minute (0 = unbegrenzt)
+    rate_limit_per_minute: int = 0
     # Monitoring: Fehlerberichte an GlitchTip (Sentry-DSN), Zugang zu /metrics von außerhalb des internen Netzes
     sentry_dsn: str = ""
     environment: str = "production"
@@ -89,6 +96,10 @@ def get_settings():
         admin_networks=tuple(n.strip() for n in (_env("ADMIN_NETWORKS", "") or "").split(",") if n.strip()),
         allow_signup=_bool(_env("ALLOW_SIGNUP", "true")),
         dev_login=_bool(_env("DEV_LOGIN", "false")),
+        smtp_url=_env("SMTP_URL", ""),
+        mail_from=_env("MAIL_FROM", Settings.mail_from),
+        enforce_plan_limits=_bool(_env("ENFORCE_PLAN_LIMITS", "true")),
+        rate_limit_per_minute=int(_env("RATE_LIMIT_PER_MINUTE", "600") or 0),
         sentry_dsn=_env("SENTRY_DSN", ""),
         environment=_env("ENVIRONMENT", "production"),
         metrics_token=_env("METRICS_TOKEN", ""),

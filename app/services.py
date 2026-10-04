@@ -10,7 +10,7 @@ from sqlalchemy.orm import object_session
 from creatwallet import validation as v
 from creatwallet.build import BuildError, build_pkpass
 
-from . import jobs, metrics, placeholders
+from . import jobs, metrics, placeholders, plans
 from .certs import CertStoreError
 from .models import Pass, Template, TemplateFile, TemplateVersion, Tenant, utcnow
 from datetime import timedelta
@@ -29,11 +29,12 @@ MAX_IMAGES = 40
 
 
 class ServiceError(Exception):
-    def __init__(self, status, message, issues=None):
+    def __init__(self, status, message, issues=None, headers=None):
         super().__init__(message)
         self.status = status
         self.message = message
         self.issues = issues or []
+        self.headers = headers or {}
 
 
 def issues_json(issues):
@@ -89,6 +90,7 @@ def create_template(session, tenant, name, pass_json, images, settings):
     if not name or len(name) > 200:
         raise ServiceError(422, "name fehlt oder ist zu lang (max. 200 Zeichen).")
     cleaned = clean_template_input(pass_json, images or {})
+    plans.check_new_template(session, tenant, settings)
     template = Template(tenant_id=tenant.id, name=name)
     session.add(template)
     version = _add_version(session, template, cleaned, images or {}, settings)
@@ -233,6 +235,7 @@ def create_pass(session, tenant, template_id, data, settings, signers, vault, se
             return existing, False
     template = get_template(session, tenant, template_id)
     _require_issuable(tenant, template)
+    plans.check_new_pass(session, tenant, settings)
     _check_data(template, data)
     if serial_number is None:
         serial_number = random_token(12)
@@ -374,6 +377,7 @@ def create_api_key(session, tenant, name=""):
 
 def create_webhook(session, tenant, url, events, settings, vault):
     """Rückgabe (Endpunkt, Geheimnis) - das Geheimnis wird nur einmal angezeigt."""
+    plans.require(tenant, "webhooks", settings)
     unknown = [e for e in events if e not in jobs.EVENTS]
     if not events or unknown:
         raise ServiceError(422, "events: mindestens eines von " + ", ".join(jobs.EVENTS))

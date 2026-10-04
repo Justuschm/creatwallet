@@ -3,9 +3,27 @@
 {% block content %}
 <div class="page-head">
   <div><h1>Zertifikat</h1><div class="sub">Mit diesem Zertifikat werden deine Pässe signiert – Apple prüft es, bevor ein Pass in die Wallet darf.</div></div>
-  {% if can("settings") %}<div class="actions"><button class="primary" data-open="upload">{{ ui.icon("plus", 16) }} Eigenes Zertifikat hochladen</button></div>{% endif %}
+  {% if can("settings") and own_allowed %}<div class="actions">
+    <form method="post" action="/portal/certificate/request" class="inline"><input type="hidden" name="csrf" value="{{ csrf }}"><button>{{ ui.icon("key", 16) }} Zertifikatsanfrage erstellen</button></form>
+    <button class="primary" data-open="upload">{{ ui.icon("plus", 16) }} Eigenes Zertifikat hochladen</button></div>{% endif %}
 </div>
 
+{% if not own_allowed %}<div class="msg info">Eigene Zertifikate sind ab dem Tarif Pro möglich. <a href="/portal/billing">Tarife ansehen</a></div>{% endif %}
+{% for r in requests %}
+<div class="card" style="margin-bottom:20px">
+  <div class="card-h"><h2>Offene Zertifikatsanfrage</h2><span class="hint">erstellt {{ r.created_at | dt }}</span></div>
+  <div class="card-b">
+    <ol class="steps small">
+      <li><a class="btn small" href="/portal/certificate/request/{{ r.id }}.certSigningRequest">{{ ui.icon("download", 13) }} Anfrage herunterladen</a></li>
+      <li>Im <a href="https://developer.apple.com/account/resources/identifiers/list/passTypeId" target="_blank" rel="noopener">Apple-Developer-Portal</a> deine Pass Type ID öffnen → „Create Certificate“ → diese Datei hochladen → <code>pass.cer</code> herunterladen.</li>
+      <li><form method="post" action="/portal/certificate/request/{{ r.id }}/complete" enctype="multipart/form-data" style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">
+        <input type="hidden" name="csrf" value="{{ csrf }}"><input type="hidden" name="activate" value="true">
+        <input type="file" name="cer" accept=".cer,.pem" required style="max-width:320px"><button class="primary small">pass.cer hochladen und aktivieren</button></form></li>
+    </ol>
+    <p class="small muted">Der private Schlüssel entsteht hier und verlässt die Plattform nie – kein Mac und keine Schlüsselbundverwaltung nötig.</p>
+  </div>
+</div>
+{% endfor %}
 <div class="cols">
   <div class="stack">
     <div class="card">
@@ -50,6 +68,7 @@
           <li>Am Mac per Doppelklick in die Schlüsselbundverwaltung laden, dann Zertifikat mit privatem Schlüssel als <code>.p12</code> exportieren und ein Passwort vergeben.</li>
           <li>Hier hochladen.</li>
         </ol>
+        <p><b>Ohne Mac:</b> „Zertifikatsanfrage erstellen“ wählen – dann lädst du nur die Anfrage bei Apple hoch und das fertige <code>pass.cer</code> wieder hier.</p>
         <p><b>Wichtig:</b> Apple-Zertifikate laufen nach einem Jahr ab. Rechtzeitig ein neues mit derselben Pass Type ID erzeugen und hochladen – es ersetzt das alte ohne Unterbrechung.</p>
         <p class="muted">Bei einem Wechsel bleiben bereits ausgegebene Pässe bei ihrem bisherigen Zertifikat. Neue Pässe nutzen das aktive.</p>
       </div>

@@ -12,7 +12,7 @@ from sqlalchemy.orm import Session
 
 from creatwallet.templates import TEMPLATES
 
-from .. import placeholders, services
+from .. import bulk, mailer, placeholders, plans, services
 from ..api.deps import ctx, get_session
 from ..models import ApiKey, Invitation, Pass, Registration, Template, User, WebhookEndpoint, utcnow
 from ..services import ServiceError, issues_json
@@ -52,7 +52,7 @@ def dashboard(request: Request, user: User = Depends(portal_user), session: Sess
     pending = [t for t in services.list_templates(session, user.tenant) if t.latest_version.status == "pending"]
     recent = services.list_passes(session, user.tenant, limit=8)
     return render(request, "portal/dashboard.html", user, stats=stats, pending=pending, recent=recent,
-                  tenant=user.tenant)
+                  tenant=user.tenant, u=plans.usage(session, user.tenant))
 
 
 # ---------------------------------------------------------------- Vorlagen
@@ -284,8 +284,12 @@ def developers(request: Request, user: User = Depends(portal_user), session: Ses
     hooks = session.scalars(select(WebhookEndpoint).where(WebhookEndpoint.tenant_id == user.tenant_id)
                             .order_by(WebhookEndpoint.created_at)).all()
     from ..jobs import EVENTS
+    from ..models import ApiRequestLog
 
-    return render(request, "portal/developers.html", user, keys=keys, hooks=hooks, events=EVENTS,
+    calls = session.scalars(select(ApiRequestLog).where(ApiRequestLog.tenant_id == user.tenant_id)
+                            .order_by(ApiRequestLog.created_at.desc()).limit(100)).all()
+    return render(request, "portal/developers.html", user, keys=keys, hooks=hooks, events=EVENTS, calls=calls,
+                  api_allowed=plans.allows(user.tenant, "api", ctx(request)[0]),
                   new_key=request.session.pop("new_key", None), new_secret=request.session.pop("new_secret", None),
                   base=ctx(request)[0].public_base_url)
 
@@ -397,12 +401,22 @@ def team_invite(request: Request, email: str = Form(...), role: str = Form(...),
     require(user, "team")
     if role not in ROLES or (role == "owner" and user.role != "owner"):
         return back("/portal/team", request, "Diese Rolle kannst du nicht vergeben.", "error")
+    try:
+        plans.check_new_user(session, user.tenant, ctx(request)[0])
+    except ServiceError as exc:
+        return back("/portal/team", request, exc.message, "error")
     inv = Invitation(tenant_id=user.tenant_id, email=email.strip()[:200], role=role, token=secrets.token_urlsafe(24),
                      created_by=user.email, expires_at=utcnow() + timedelta(days=7))
     session.add(inv)
+    link = f"{ctx(request)[0].public_base_url}/invite/{inv.token}"
+    mail_id = mailer.queue_mail(session, inv.email, f"Einladung: {user.tenant.name}",
+                                mailer.invite_text(user.tenant.name, user.name or user.email, ROLES[role], link),
+                                tenant_id=user.tenant_id)
     audit(session, user, "team.invite", user.tenant_id, inv.id, email=inv.email, role=role)
     session.commit()
-    request.session["new_invite"] = f"{ctx(request)[0].public_base_url}/invite/{inv.token}"
+    request.session["new_invite"] = link
+    if mail_id is not None and ctx(request)[0].smtp_url:
+        flash(request, f"Einladung per E-Mail an {inv.email} verschickt.")
     return back("/portal/team")
 
 
@@ -462,9 +476,15 @@ def _owner_count(session, tenant_id):
 def certificate_page(request: Request, user: User = Depends(portal_user), session: Session = Depends(get_session)):
     from ..models import Certificate
 
+    from ..models import CertificateRequest
+
     own = session.scalars(select(Certificate).where(Certificate.owner_tenant_id == user.tenant_id)
                           .order_by(Certificate.created_at.desc())).all()
-    return render(request, "portal/certificate.html", user, tenant=user.tenant, own=own)
+    requests = session.scalars(select(CertificateRequest).where(CertificateRequest.owner_tenant_id == user.tenant_id,
+                                                                CertificateRequest.status == "open")
+                               .order_by(CertificateRequest.created_at.desc())).all()
+    return render(request, "portal/certificate.html", user, tenant=user.tenant, own=own, requests=requests,
+                  own_allowed=plans.allows(user.tenant, "own_certificate", ctx(request)[0]))
 
 
 @router.post("/certificate/upload")
@@ -474,6 +494,10 @@ async def certificate_upload(request: Request, user: User = Depends(portal_user)
     from ..certs import CertStoreError, import_certificate
 
     require(user, "settings")
+    try:
+        plans.require(user.tenant, "own_certificate", ctx(request)[0])
+    except ServiceError as exc:
+        return back("/portal/certificate", request, exc.message, "error")
     form = await request.form()
     upload = form.get("p12")
     data = await upload.read() if hasattr(upload, "read") else b""
@@ -513,6 +537,226 @@ def certificate_activate(request: Request, certificate_id: str = Form(...), user
     audit(session, user, "certificate.activate", t.id, cert.id, pass_type_identifier=cert.pass_type_identifier)
     session.commit()
     return back("/portal/certificate", request, f"Aktiv für neue Pässe: {cert.pass_type_identifier}")
+
+
+# ---------------------------------------------------------------- Zertifikatsanfrage (ohne Mac)
+
+@router.post("/certificate/request")
+def certificate_request(request: Request, label: str = Form(""), user: User = Depends(portal_user),
+                        session: Session = Depends(get_session)):
+    from .. import csr
+
+    require(user, "settings")
+    try:
+        plans.require(user.tenant, "own_certificate", ctx(request)[0])
+    except ServiceError as exc:
+        return back("/portal/certificate", request, exc.message, "error")
+    req = csr.create_request(session, ctx(request)[2], label.strip() or user.tenant.name, user.tenant_id, user.email)
+    audit(session, user, "certificate.request", user.tenant_id, req.id)
+    session.commit()
+    return back("/portal/certificate", request, "Zertifikatsanfrage erstellt – jetzt herunterladen und bei Apple hochladen.")
+
+
+@router.get("/certificate/request/{req_id}.certSigningRequest")
+def certificate_request_download(req_id: str, user: User = Depends(portal_user), session: Session = Depends(get_session)):
+    from ..models import CertificateRequest
+
+    req = session.get(CertificateRequest, req_id)
+    if req is None or req.owner_tenant_id != user.tenant_id:
+        raise ServiceError(404, "Anfrage nicht gefunden.")
+    return Response(req.csr_pem, media_type="application/pkcs10",
+                    headers={"Content-Disposition": 'attachment; filename="wallet.certSigningRequest"'})
+
+
+@router.post("/certificate/request/{req_id}/complete")
+async def certificate_request_complete(req_id: str, request: Request, user: User = Depends(portal_user),
+                                       session: Session = Depends(get_session)):
+    from .. import csr
+    from ..certs import CertStoreError
+    from ..models import CertificateRequest
+
+    require(user, "settings")
+    req = session.get(CertificateRequest, req_id)
+    if req is None or req.owner_tenant_id != user.tenant_id:
+        raise ServiceError(404, "Anfrage nicht gefunden.")
+    form = await request.form()
+    upload = form.get("cer")
+    data = await upload.read() if hasattr(upload, "read") else b""
+    settings, signers, vault = ctx(request)
+    try:
+        cert = csr.complete_request(session, vault, signers.store, settings.wwdr_path, req, data[:100_000])
+    except CertStoreError as exc:
+        session.rollback()
+        return back("/portal/certificate", request, str(exc), "error")
+    signers.forget(cert.pass_type_identifier)
+    if form.get("activate") == "true" and services.assign_certificate(session, user.tenant, cert):
+        flash(request, "Hinweis: " + services.SWITCH_HINT, "warn")
+    audit(session, user, "certificate.own.import", user.tenant_id, cert.id, pass_type_identifier=cert.pass_type_identifier,
+          via="csr")
+    session.commit()
+    return back("/portal/certificate", request, f"Zertifikat {cert.pass_type_identifier} eingerichtet.")
+
+
+# ---------------------------------------------------------------- Massenausgabe
+
+@router.get("/bulk")
+def bulk_page(request: Request, user: User = Depends(portal_user), session: Session = Depends(get_session)):
+    from ..models import BulkIssue
+
+    runs = session.scalars(select(BulkIssue).where(BulkIssue.tenant_id == user.tenant_id)
+                           .order_by(BulkIssue.created_at.desc()).limit(20)).all()
+    usable = [t for t in services.list_templates(session, user.tenant) if t.approved_version]
+    return render(request, "portal/bulk.html", user, runs=runs, templates=usable,
+                  preview=request.session.pop("bulk_preview", None), mail_enabled=bool(ctx(request)[0].smtp_url))
+
+
+@router.post("/bulk/preview")
+async def bulk_preview(request: Request, user: User = Depends(portal_user), session: Session = Depends(get_session)):
+    from ..models import BulkIssue
+
+    require(user, "passes")
+    settings = ctx(request)[0]
+    try:
+        plans.require(user.tenant, "bulk", settings)
+    except ServiceError as exc:
+        return back("/portal/bulk", request, exc.message, "error")
+    form = await request.form()
+    template = services.get_template(session, user.tenant, str(form.get("template_id", "")))
+    upload = form.get("file")
+    raw = await upload.read() if hasattr(upload, "read") else b""
+    try:
+        columns, rows = bulk.read_csv(raw[:10_000_000])
+    except bulk.CsvError as exc:
+        return back("/portal/bulk", request, str(exc), "error")
+    mapping, missing, extra = bulk.plan_import(template, columns)
+    if missing:
+        return back("/portal/bulk", request, "Spalten fehlen in der CSV: " + ", ".join(missing), "error")
+    try:
+        plans.check_new_pass(session, user.tenant, settings, count=len(rows))
+    except ServiceError as exc:
+        return back("/portal/bulk", request, exc.message, "error")
+    run = BulkIssue(tenant_id=user.tenant_id, template_id=template.id, created_by=user.email, rows=rows,
+                    total=len(rows), filename=str(getattr(upload, "filename", ""))[:200], status="draft",
+                    send_emails=form.get("send_emails") == "true")
+    session.add(run)
+    session.commit()
+    request.session["bulk_preview"] = run.id
+    return back("/portal/bulk")
+
+
+@router.post("/bulk/{run_id}/{action}")
+def bulk_action(run_id: str, action: str, request: Request, user: User = Depends(portal_user),
+                session: Session = Depends(get_session)):
+    from .. import jobs
+    from ..models import BulkIssue
+
+    require(user, "passes")
+    run = session.get(BulkIssue, run_id)
+    if run is None or run.tenant_id != user.tenant_id or run.status != "draft":
+        raise ServiceError(404, "Massenausgabe nicht gefunden oder schon gestartet.")
+    if action == "start":
+        run.status = "pending"
+        jobs.enqueue(session, bulk.BULK, {"bulk_id": run.id}, tenant_id=user.tenant_id)
+        audit(session, user, "bulk.start", user.tenant_id, run.id, rows=run.total, template=run.template.name)
+        message = f"{run.total} Pässe werden ausgegeben – die Liste mit allen Links steht gleich hier bereit."
+    elif action == "cancel":
+        session.delete(run)
+        message = "Verworfen."
+    else:
+        raise ServiceError(404, "Unbekannte Aktion.")
+    session.commit()
+    return back("/portal/bulk", request, message)
+
+
+@router.get("/bulk/{run_id}/ergebnis.csv")
+def bulk_result(run_id: str, user: User = Depends(portal_user), session: Session = Depends(get_session)):
+    from ..models import BulkIssue
+
+    run = session.get(BulkIssue, run_id)
+    if run is None or run.tenant_id != user.tenant_id:
+        raise ServiceError(404, "Massenausgabe nicht gefunden.")
+    return Response(bulk.result_csv(run), media_type="text/csv; charset=utf-8",
+                    headers={"Content-Disposition": f'attachment; filename="massenausgabe-{run.created_at:%Y%m%d-%H%M}.csv"'})
+
+
+@router.get("/bulk/vorlage.csv")
+def bulk_sample(template_id: str, user: User = Depends(portal_user), session: Session = Depends(get_session)):
+    template = services.get_template(session, user.tenant, template_id)
+    names = placeholders.find(template.approved_version.pass_json) if template.approved_version else []
+    header = ";".join(names + ["email"])
+    sample = ";".join(["…"] * len(names) + ["kunde@example.de"])
+    return Response("\ufeff" + header + "\n" + sample + "\n", media_type="text/csv; charset=utf-8",
+                    headers={"Content-Disposition": f'attachment; filename="vorlage-{template.name}.csv"'})
+
+
+# ---------------------------------------------------------------- Abrechnung (Tarif und Verbrauch)
+
+@router.get("/billing")
+def billing(request: Request, user: User = Depends(portal_user), session: Session = Depends(get_session)):
+    from ..models import UsageDaily
+
+    history = session.scalars(select(UsageDaily).where(UsageDaily.tenant_id == user.tenant_id)
+                              .order_by(UsageDaily.day.desc()).limit(31)).all()
+    return render(request, "portal/billing.html", user, tenant=user.tenant, u=plans.usage(session, user.tenant),
+                  plans=plans.PLANS, labels=plans.FEATURE_LABELS, history=list(reversed(history)))
+
+
+# ---------------------------------------------------------------- Exporte
+
+@router.get("/stats.csv")
+def stats_csv(days: int = 30, user: User = Depends(portal_user), session: Session = Depends(get_session)):
+    import csv
+    import io
+
+    days = min(max(days, 7), 365)
+    start = (utcnow() - timedelta(days=days - 1)).date()
+    issued = _per_day(session.scalars(select(Pass.created_at).where(Pass.tenant_id == user.tenant_id,
+                                                                    Pass.created_at >= start)).all())
+    installed = _per_day(session.scalars(select(Registration.created_at).join(Pass)
+                                         .where(Pass.tenant_id == user.tenant_id,
+                                                Registration.created_at >= start)).all())
+    out = io.StringIO()
+    w = csv.writer(out, delimiter=";")
+    w.writerow(["tag", "ausgegeben", "installiert"])
+    for i in range(days):
+        d = start + timedelta(days=i)
+        w.writerow([d.isoformat(), issued.get(d, 0), installed.get(d, 0)])
+    return Response("\ufeff" + out.getvalue(), media_type="text/csv; charset=utf-8",
+                    headers={"Content-Disposition": f'attachment; filename="statistik-{days}-tage.csv"'})
+
+
+@router.get("/settings/export.zip")
+def data_export(user: User = Depends(portal_user), session: Session = Depends(get_session)):
+    """Alle Daten der Firma: Firmendaten, Vorlagen mit Bildern, Pässe."""
+    import csv
+    import io
+    import zipfile
+
+    require(user, "settings")
+    t = user.tenant
+    buf = io.BytesIO()
+    with zipfile.ZipFile(buf, "w", zipfile.ZIP_DEFLATED) as zf:
+        zf.writestr("firma.json", json.dumps({"name": t.name, "organization_name": t.organization_name,
+                                              "address": t.address, "vat_id": t.vat_id, "contact_email": t.contact_email,
+                                              "plan": t.plan, "status": t.status,
+                                              "created_at": t.created_at.isoformat()}, indent=2, ensure_ascii=False))
+        for tpl in services.list_templates(session, t):
+            for v in tpl.versions:
+                base = f"vorlagen/{tpl.name}/v{v.number}"
+                zf.writestr(f"{base}/pass.json", json.dumps(v.pass_json, indent=2, ensure_ascii=False))
+                for file in v.files:
+                    zf.writestr(f"{base}/{file.name}", file.data)
+        out = io.StringIO()
+        w = csv.writer(out, delimiter=";")
+        w.writerow(["seriennummer", "vorlage", "status", "version", "geraete", "erstellt", "geaendert", "daten"])
+        for p in session.scalars(select(Pass).where(Pass.tenant_id == t.id).order_by(Pass.created_at)):
+            w.writerow([p.serial_number, p.template.name, p.status, p.version, len(p.registrations),
+                        p.created_at.isoformat(), p.updated_at.isoformat(), json.dumps(p.data, ensure_ascii=False)])
+        zf.writestr("paesse.csv", "\ufeff" + out.getvalue())
+    audit(session, user, "tenant.export", t.id, t.id)
+    session.commit()
+    return Response(buf.getvalue(), media_type="application/zip",
+                    headers={"Content-Disposition": f'attachment; filename="datenexport-{utcnow():%Y%m%d}.zip"'})
 
 
 # ---------------------------------------------------------------- Einstellungen

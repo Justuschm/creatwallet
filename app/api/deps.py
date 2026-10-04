@@ -29,6 +29,15 @@ def get_tenant(request: Request, session: Session = Depends(get_session)) -> Ten
     api_key = session.scalars(select(ApiKey).where(ApiKey.prefix == prefix)).one_or_none()
     if api_key is None or api_key.revoked_at is not None or not secret_matches(secret, api_key.secret_hash):
         raise ServiceError(401, "API-Schlüssel ungültig oder widerrufen.")
+    request.state.api_log = (api_key.tenant_id, api_key.prefix)
+    settings = request.app.state.settings
+    from .. import plans, ratelimit
+
+    allowed, retry = ratelimit.hit(session, f"key:{api_key.prefix}", settings.rate_limit_per_minute)
+    if not allowed:
+        raise ServiceError(429, f"Zu viele Anfragen - höchstens {settings.rate_limit_per_minute} pro Minute.",
+                           headers={"Retry-After": str(retry)})
+    plans.require(api_key.tenant, "api", settings)
     now = utcnow()
     last = api_key.last_used_at
     if last is not None and last.tzinfo is None:  # SQLite liefert Zeiten ohne Zeitzone

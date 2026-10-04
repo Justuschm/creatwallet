@@ -72,7 +72,10 @@ def overview(tenant_id: str, request: Request, user: User = Depends(admin_user),
     }
     log = session.scalars(select(AuditLog).where(AuditLog.tenant_id == t.id)
                           .order_by(AuditLog.created_at.desc()).limit(6)).all()
-    return page(request, user, session, t, "overview", "overview", stats=stats, plans=PLANS, log=log, now=utcnow())
+    from .. import plans as plan_defs
+
+    return page(request, user, session, t, "overview", "overview", stats=stats, plans=PLANS, log=log, now=utcnow(),
+                u=plan_defs.usage(session, t), plan_labels={k: p.label for k, p in plan_defs.PLANS.items()})
 
 
 # ---------------------------------------------------------------- Zertifikat

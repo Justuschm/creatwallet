@@ -35,6 +35,8 @@ class Tenant(Base):
     vat_id: Mapped[str] = mapped_column(String(40), default="")
     contact_email: Mapped[str] = mapped_column(String(200), default="")
     review_note: Mapped[str] = mapped_column(Text, default="")
+    # Zuletzt verschickte Kontingent-Warnung, z. B. "2026-10:80" - damit jede Warnung nur einmal pro Monat kommt
+    quota_notice: Mapped[str] = mapped_column(String(20), default="")
     certificate_id: Mapped[str | None] = mapped_column(ForeignKey("certificates.id"), nullable=True)
     # Vom Admin zugeordnetes Standard-Zertifikat - Rückfall, wenn die Firma ihr eigenes deaktiviert.
     standard_certificate_id: Mapped[str | None] = mapped_column(
@@ -282,3 +284,104 @@ class AuditLog(Base):
     object_id: Mapped[str] = mapped_column(String(64), default="")
     details: Mapped[dict] = mapped_column(JSONType, default=dict)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow, index=True)
+
+
+# ---------------------------------------------------------------- Betrieb und Komfort (Masterplan Phase 2/3)
+
+class BulkIssue(Base):
+    """Massenausgabe aus einer CSV-Datei, abgearbeitet vom Worker."""
+
+    __tablename__ = "bulk_issues"
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=new_id)
+    tenant_id: Mapped[str] = mapped_column(ForeignKey("tenants.id", ondelete="CASCADE"), index=True)
+    template_id: Mapped[str] = mapped_column(ForeignKey("templates.id", ondelete="CASCADE"))
+    created_by: Mapped[str] = mapped_column(String(200), default="")
+    filename: Mapped[str] = mapped_column(String(200), default="")
+    rows: Mapped[list] = mapped_column(JSONType, default=list)
+    send_emails: Mapped[bool] = mapped_column(default=False)
+    status: Mapped[str] = mapped_column(String(20), default="pending")  # pending | running | done | failed
+    total: Mapped[int] = mapped_column(Integer, default=0)
+    done: Mapped[int] = mapped_column(Integer, default=0)
+    failed: Mapped[int] = mapped_column(Integer, default=0)
+    results: Mapped[list] = mapped_column(JSONType, default=list)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
+    finished_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+
+    template: Mapped[Template] = relationship()
+
+
+class ApiRequestLog(Base):
+    """Protokoll der API-Aufrufe einer Firma (für 'Einbinden' im Portal)."""
+
+    __tablename__ = "api_request_log"
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=new_id)
+    tenant_id: Mapped[str] = mapped_column(String(36), index=True)
+    key_prefix: Mapped[str] = mapped_column(String(16), default="")
+    method: Mapped[str] = mapped_column(String(10))
+    path: Mapped[str] = mapped_column(String(300))
+    status: Mapped[int] = mapped_column(Integer)
+    duration_ms: Mapped[int] = mapped_column(Integer, default=0)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow, index=True)
+
+
+class RateCounter(Base):
+    """Zähler je Schlüssel und Minute für Rate-Limits (über alle Prozesse und Server hinweg)."""
+
+    __tablename__ = "rate_counters"
+
+    bucket: Mapped[str] = mapped_column(String(120), primary_key=True)
+    window: Mapped[int] = mapped_column(Integer, primary_key=True)  # Unix-Minute
+    count: Mapped[int] = mapped_column(Integer, default=0)
+
+
+class UsageDaily(Base):
+    """Tägliche Momentaufnahme je Firma - Grundlage für Abrechnung und Kontingent."""
+
+    __tablename__ = "usage_daily"
+    __table_args__ = (UniqueConstraint("tenant_id", "day"),)
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=new_id)
+    tenant_id: Mapped[str] = mapped_column(ForeignKey("tenants.id", ondelete="CASCADE"), index=True)
+    day: Mapped[str] = mapped_column(String(10))  # JJJJ-MM-TT
+    active: Mapped[int] = mapped_column(Integer, default=0)
+    issued: Mapped[int] = mapped_column(Integer, default=0)
+    installed: Mapped[int] = mapped_column(Integer, default=0)
+
+
+class SystemState(Base):
+    """Kleine Schlüssel-Wert-Ablage, z. B. wann die tägliche Wartung zuletzt lief."""
+
+    __tablename__ = "system_state"
+
+    key: Mapped[str] = mapped_column(String(80), primary_key=True)
+    value: Mapped[str] = mapped_column(Text, default="")
+
+
+class Announcement(Base):
+    """Hinweis vom Plattform-Admin, den alle Firmen im Portal sehen (z. B. Wartung)."""
+
+    __tablename__ = "announcements"
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=new_id)
+    text: Mapped[str] = mapped_column(Text)
+    level: Mapped[str] = mapped_column(String(10), default="info")  # info | warn
+    active: Mapped[bool] = mapped_column(default=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
+
+
+class CertificateRequest(Base):
+    """Zertifikatsanfrage (CSR) für Apple. Der private Schlüssel bleibt verschlüsselt hier, bis das
+    Zertifikat von Apple hochgeladen wird - ohne Mac und Schlüsselbund."""
+
+    __tablename__ = "certificate_requests"
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=new_id)
+    owner_tenant_id: Mapped[str | None] = mapped_column(ForeignKey("tenants.id", ondelete="CASCADE"),
+                                                        nullable=True, index=True)
+    label: Mapped[str] = mapped_column(String(200), default="")
+    key_enc: Mapped[str] = mapped_column(Text)
+    csr_pem: Mapped[str] = mapped_column(Text)
+    status: Mapped[str] = mapped_column(String(20), default="open")  # open | completed
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
