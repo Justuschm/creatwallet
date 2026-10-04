@@ -23,7 +23,7 @@
     <div class="card-h"><h2>Konto</h2>{{ ui.badge(tenant.status) }}</div>
     <table class="kv"><tbody>
       <tr><td>Tarif</td><td>{{ tenant.plan }}</td></tr>
-      <tr><td>Zertifikat</td><td class="small mono">{{ tenant.certificate.pass_type_identifier if tenant.certificate else "–" }}</td></tr>
+      <tr><td>Zertifikat</td><td>{% if tenant.certificate %}{{ ui.cert_kind(tenant.certificate) }}<div class="small mono">{{ tenant.certificate.pass_type_identifier }}</div><div class="small">gültig bis {{ tenant.certificate.expires_at | d }}</div>{% else %}–{% endif %}</td></tr>
       <tr><td>Kunde seit</td><td>{{ tenant.created_at | d }}</td></tr>
     </tbody></table>
   </div>

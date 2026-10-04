@@ -105,6 +105,7 @@ class AccountOut(BaseModel):
     status: str
     plan: str
     pass_type_identifier: str | None
+    certificate_kind: str | None = Field(None, description="standard (Plattform) oder own (eigener Apple-Account)")
     certificate_expires_at: datetime | None
 
 

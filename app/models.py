@@ -38,7 +38,7 @@ class Tenant(Base):
     certificate_id: Mapped[str | None] = mapped_column(ForeignKey("certificates.id"), nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
 
-    certificate: Mapped["Certificate | None"] = relationship()
+    certificate: Mapped["Certificate | None"] = relationship(foreign_keys=[certificate_id])
 
 
 class ApiKey(Base):
@@ -57,7 +57,12 @@ class ApiKey(Base):
 
 
 class Certificate(Base):
-    """Ein Pass-Type-ID-Zertifikat. Der private Schlüssel liegt im Zertifikatsspeicher, nicht hier."""
+    """Ein Pass-Type-ID-Zertifikat. Der private Schlüssel liegt im Zertifikatsspeicher, nicht hier.
+
+    Zwei Arten: Standard-Zertifikate aus dem Apple-Account des Plattform-Betreibers
+    (``owner_tenant_id`` leer, beliebig vielen Firmen zuordenbar) und eigene Zertifikate einer
+    Firma aus deren Apple-Account (``owner_tenant_id`` gesetzt, nur dieser Firma zuordenbar).
+    """
 
     __tablename__ = "certificates"
 
@@ -65,7 +70,17 @@ class Certificate(Base):
     pass_type_identifier: Mapped[str] = mapped_column(String(200), unique=True)
     team_identifier: Mapped[str] = mapped_column(String(20))
     expires_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+    owner_tenant_id: Mapped[str | None] = mapped_column(
+        ForeignKey("tenants.id", ondelete="CASCADE", use_alter=True, name="fk_certificate_owner_tenant"),
+        nullable=True, index=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
+
+    @property
+    def is_own(self):
+        return self.owner_tenant_id is not None
+
+    def usable_by(self, tenant):
+        return self.owner_tenant_id in (None, tenant.id)
 
 
 class Template(Base):
@@ -132,6 +147,10 @@ class Pass(Base):
     id: Mapped[str] = mapped_column(String(36), primary_key=True, default=new_id)
     tenant_id: Mapped[str] = mapped_column(ForeignKey("tenants.id", ondelete="CASCADE"), index=True)
     template_id: Mapped[str] = mapped_column(ForeignKey("templates.id"), index=True)
+    # Zertifikat, mit dem der Pass ausgegeben wurde. Apple erkennt Pässe an Pass Type ID + Seriennummer -
+    # Updates müssen deshalb immer mit diesem Zertifikat signiert werden, auch wenn die Firma später wechselt.
+    certificate_id: Mapped[str | None] = mapped_column(ForeignKey("certificates.id", name="fk_pass_certificate"),
+                                                      nullable=True, index=True)
     serial_number: Mapped[str] = mapped_column(String(100))
     data: Mapped[dict] = mapped_column(JSONType, default=dict)
     status: Mapped[str] = mapped_column(String(20), default="active")  # active | voided
@@ -145,6 +164,7 @@ class Pass(Base):
 
     tenant: Mapped[Tenant] = relationship()
     template: Mapped[Template] = relationship()
+    certificate: Mapped["Certificate | None"] = relationship()
     registrations: Mapped[list["Registration"]] = relationship(back_populates="pass_", cascade="all, delete-orphan")
 
 

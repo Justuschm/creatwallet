@@ -44,3 +44,15 @@
 {% macro empty(text, hint="") -%}
 <div class="empty"><p>{{ text }}</p>{% if hint %}<p class="small muted">{{ hint }}</p>{% endif %}</div>
 {%- endmacro %}
+
+{# Herkunft eines Zertifikats: Standard (Plattform) oder eigenes der Firma #}
+{% macro cert_kind(cert) -%}
+{%- if cert is none %}<span class="badge">keins</span>
+{%- elif cert.owner_tenant_id %}<span class="badge own">Eigenes Zertifikat der Firma</span>
+{%- else %}<span class="badge standard">Standard (Plattform)</span>{% endif -%}
+{%- endmacro %}
+
+{% macro cert_expiry(cert) -%}
+{%- set d = cert.expires_at | days_left -%}
+<span class="{{ 'err-text' if d < 30 else ('warn-text' if d < 60 else '') }}">{{ cert.expires_at | d }} · noch {{ d }} Tage</span>
+{%- endmacro %}

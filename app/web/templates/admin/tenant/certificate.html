@@ -1,0 +1,64 @@
+{% extends "admin/tenant/_layout.html" %}{% import "_ui.html" as ui %}{% set section = "Zertifikat" %}
+{% block tenant %}
+<div class="cols">
+  <div class="stack">
+    <div class="card">
+      <div class="card-h"><h2>Aktives Zertifikat</h2>{{ ui.cert_kind(t.certificate) }}</div>
+      {% if t.certificate %}
+      <table class="kv"><tbody>
+        <tr><td>Herkunft</td><td>{% if t.certificate.owner_tenant_id %}Apple-Account der Firma (Team {{ t.certificate.team_identifier }}){% else %}Dein Apple-Account (Team {{ t.certificate.team_identifier }}){% endif %}</td></tr>
+        <tr><td>Pass Type ID</td><td class="mono small">{{ t.certificate.pass_type_identifier }}</td></tr>
+        <tr><td>Gültig bis</td><td>{{ ui.cert_expiry(t.certificate) }}</td></tr>
+        {% if not t.certificate.owner_tenant_id %}<tr><td>Genutzt von</td><td>{{ usage.get(t.certificate.id, 0) }} Firma/Firmen</td></tr>{% endif %}
+      </tbody></table>
+      {% else %}{{ ui.empty("Kein Zertifikat zugeordnet.", "Ohne Zertifikat kann die Firma keine Pässe ausgeben.") }}{% endif %}
+    </div>
+
+    <div class="card">
+      <div class="card-h"><h2>Standard-Zertifikat zuordnen</h2><span class="hint">aus deinem Apple-Account</span></div>
+      <div class="card-b">
+        <form method="post" action="/admin/tenants/{{ t.id }}/certificate" style="display:flex;gap:8px;flex-wrap:wrap">
+          <input type="hidden" name="csrf" value="{{ csrf }}">
+          <select name="certificate_id" aria-label="Standard-Zertifikat" style="flex:1;min-width:260px">
+            <option value="">– bitte wählen –</option>
+            {% for c in standard %}<option value="{{ c.id }}" {{ "selected" if t.certificate_id == c.id }}>{{ c.pass_type_identifier }} · bis {{ c.expires_at | d }} · {{ usage.get(c.id, 0) }} Firmen</option>{% endfor %}
+          </select>
+          <button>Zuordnen</button>
+        </form>
+        <p class="small muted">Neue Standard-Zertifikate lädst du unter <a href="/admin/certificates">Zertifikate</a> hoch. Empfehlung: eine eigene Pass Type ID pro Firma.</p>
+      </div>
+    </div>
+  </div>
+
+  <div class="stack">
+    <div class="card">
+      <div class="card-h"><h2>Eigene Zertifikate der Firma</h2><button class="small primary" data-open="own-upload">{{ ui.icon("plus", 14) }} Hochladen</button></div>
+      {% if own %}
+      <table><tbody>{% for c in own %}<tr>
+        <td><span class="mono small">{{ c.pass_type_identifier }}</span><div class="small">{{ ui.cert_expiry(c) }}</div></td>
+        <td class="right">{% if t.certificate_id == c.id %}<span class="badge active">aktiv</span>{% else %}
+          <form method="post" action="/admin/tenants/{{ t.id }}/certificate" class="inline"><input type="hidden" name="csrf" value="{{ csrf }}"><input type="hidden" name="certificate_id" value="{{ c.id }}"><button class="small">Aktivieren</button></form>{% endif %}</td></tr>{% endfor %}</tbody></table>
+      {% else %}{{ ui.empty("Keine eigenen Zertifikate.", "Für Firmen mit eigenem Apple-Developer-Account.") }}{% endif %}
+    </div>
+    <div class="card">
+      <div class="card-h"><h2>Gut zu wissen</h2></div>
+      <div class="card-b small">
+        <p><b>Standard:</b> Pässe laufen über deinen Apple-Account. Du verlängerst das Zertifikat jährlich.</p>
+        <p><b>Eigenes:</b> Pässe laufen über den Apple-Account der Firma. Die Firma muss das Zertifikat jährlich erneuern und dir die neue <code>.p12</code> geben.</p>
+        <p class="muted">Bei einem Wechsel bleiben bereits ausgegebene Pässe bei ihrem bisherigen Zertifikat – Apple erkennt sie an der Pass Type ID. Neue Pässe nutzen das neue.</p>
+      </div>
+    </div>
+  </div>
+</div>
+
+{% call ui.dialog("own-upload", "Eigenes Zertifikat der Firma hochladen") %}
+<form method="post" action="/admin/tenants/{{ t.id }}/certificate/upload" enctype="multipart/form-data">
+  <input type="hidden" name="csrf" value="{{ csrf }}">
+  <p class="small muted">Die Firma erzeugt das Pass-Type-ID-Zertifikat in ihrem Apple-Developer-Account und exportiert es mit Schlüssel als <code>.p12</code>.</p>
+  <label class="f">.p12-Datei<input type="file" name="p12" accept=".p12,application/x-pkcs12" required></label>
+  <label class="f">Passwort der .p12<input type="password" name="password" autocomplete="off"></label>
+  <label class="check"><input type="checkbox" name="activate" value="true" checked> sofort für neue Pässe dieser Firma verwenden</label>
+  <div class="foot"><button type="button" data-close>Abbrechen</button><button class="primary">Hochladen</button></div>
+</form>
+{% endcall %}
+{% endblock %}

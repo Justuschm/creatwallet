@@ -47,7 +47,7 @@
       <table class="kv"><tbody>
         <tr><td>Name im Pass</td><td>{{ tenant.organization_name }}</td></tr>
         <tr><td>Tarif</td><td>{{ tenant.plan }}</td></tr>
-        <tr><td>Zertifikat</td><td>{% if tenant.certificate %}<span class="small mono">{{ tenant.certificate.pass_type_identifier }}</span>{% else %}<span class="muted">wird bei der Freischaltung hinterlegt</span>{% endif %}</td></tr>
+        <tr><td>Zertifikat</td><td>{% if tenant.certificate %}{{ ui.cert_kind(tenant.certificate) }}<div class="small mono">{{ tenant.certificate.pass_type_identifier }}</div>{% else %}<span class="muted">wird bei der Freischaltung hinterlegt</span>{% endif %}</td></tr>
       </tbody></table>
     </div>
     <div class="card">

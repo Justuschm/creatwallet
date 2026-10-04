@@ -50,9 +50,10 @@ class DatabaseCollector:
             yield age
 
             certs = GaugeMetricFamily("wallet_certificate_expiry_seconds", "Restlaufzeit der Zertifikate",
-                                      labels=["pass_type_identifier"])
+                                      labels=["pass_type_identifier", "kind"])
             for c in s.scalars(select(Certificate)):
-                certs.add_metric([c.pass_type_identifier], (_aware(c.expires_at) - utcnow()).total_seconds())
+                certs.add_metric([c.pass_type_identifier, "own" if c.owner_tenant_id else "standard"],
+                                 (_aware(c.expires_at) - utcnow()).total_seconds())
             yield certs
 
             tenants = GaugeMetricFamily("wallet_tenants", "Firmen nach Status", labels=["status"])

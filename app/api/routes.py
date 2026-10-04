@@ -61,6 +61,7 @@ def account(tenant: Tenant = Depends(get_tenant)):
     return AccountOut(id=tenant.id, name=tenant.name, organization_name=tenant.organization_name,
                       status=tenant.status, plan=tenant.plan,
                       pass_type_identifier=cert.pass_type_identifier if cert else None,
+                      certificate_kind=("own" if cert.owner_tenant_id else "standard") if cert else None,
                       certificate_expires_at=cert.expires_at if cert else None)
 
 

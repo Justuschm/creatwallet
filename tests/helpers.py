@@ -22,16 +22,16 @@ def _cert(subject, issuer, public_key, signing_key, ca):
             .sign(signing_key, hashes.SHA256()))
 
 
-def make_credentials(password=b"secret"):
+def make_credentials(password=b"secret", pti=PTI, team=TEAM):
     """Returns dict with wwdr (PEM), p12, cert (PEM), key (PEM) bytes."""
     ca_key = rsa.generate_private_key(public_exponent=65537, key_size=2048)
     ca_name = x509.Name([x509.NameAttribute(NameOID.COMMON_NAME, "Test WWDR")])
     ca = _cert(ca_name, ca_name, ca_key.public_key(), ca_key, True)
     key = rsa.generate_private_key(public_exponent=65537, key_size=2048)
     subject = x509.Name([
-        x509.NameAttribute(NameOID.USER_ID, PTI),
-        x509.NameAttribute(NameOID.COMMON_NAME, f"Pass Type ID: {PTI}"),
-        x509.NameAttribute(NameOID.ORGANIZATIONAL_UNIT_NAME, TEAM),
+        x509.NameAttribute(NameOID.USER_ID, pti),
+        x509.NameAttribute(NameOID.COMMON_NAME, f"Pass Type ID: {pti}"),
+        x509.NameAttribute(NameOID.ORGANIZATIONAL_UNIT_NAME, team),
     ])
     cert = _cert(subject, ca_name, key.public_key(), ca_key, False)
     enc = serialization.BestAvailableEncryption(password)

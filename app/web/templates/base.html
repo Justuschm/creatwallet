@@ -113,6 +113,9 @@
   .badge.active, .badge.approved, .badge.done { background: var(--ok-soft); color: var(--ok); }
   .badge.pending, .badge.running, .badge.paused { background: var(--warn-soft); color: var(--warn); }
   .badge.suspended, .badge.voided, .badge.rejected, .badge.failed, .badge.revoked { background: var(--err-soft); color: var(--err); }
+  .badge.standard { background: var(--accent-soft); color: var(--accent-text); }
+  .badge.own { background: color-mix(in srgb, #9333ea 14%, transparent); color: #a855f7; }
+  .err-text { color: var(--err); font-weight: 600; } .warn-text { color: var(--warn); font-weight: 600; }
   .chips { display: flex; flex-wrap: wrap; gap: 6px; }
   .chips code { background: var(--accent-soft); color: var(--accent-text); }
   .msg { padding: 11px 14px; border-radius: 10px; margin-bottom: 16px; background: var(--ok-soft); color: var(--ok); border: 1px solid color-mix(in srgb, currentColor 20%, transparent); }

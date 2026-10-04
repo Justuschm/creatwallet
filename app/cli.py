@@ -94,8 +94,11 @@ def cmd_add_certificate(args):
     if not settings.wwdr_path:
         sys.exit("WALLET_WWDR ist nicht gesetzt (Pfad zum Apple-WWDR-Zertifikat).")
     password = os.environ.get(args.password_env) if args.password_env else getpass.getpass(".p12-Passwort: ")
+    if args.own and not args.tenant:
+        sys.exit("--own braucht --tenant: das eigene Zertifikat gehört genau dieser Firma.")
     try:
-        cert = import_certificate(s, make_store(settings), Path(args.p12).read_bytes(), password, settings.wwdr_path)
+        cert = import_certificate(s, make_store(settings), Path(args.p12).read_bytes(), password, settings.wwdr_path,
+                                  owner_tenant_id=args.tenant if args.own else None)
     except CertStoreError as exc:
         sys.exit(f"Fehler: {exc}")
     if args.tenant:
@@ -111,6 +114,8 @@ def cmd_assign_certificate(args):
     if cert is None:
         sys.exit("Zertifikat nicht gefunden - zuerst add-certificate.")
     t = _tenant(s, args.tenant)
+    if not cert.usable_by(t):
+        sys.exit("Dieses Zertifikat gehört einer anderen Firma.")
     t.certificate = cert
     s.commit()
     print(f"{t.name} signiert jetzt mit {cert.pass_type_identifier}.")
@@ -299,6 +304,7 @@ def main(argv=None):
     a.add_argument("--p12", required=True)
     a.add_argument("--password-env", help="Passwort aus dieser Umgebungsvariable lesen (sonst Abfrage)")
     a.add_argument("--tenant", help="direkt dieser Firma zuordnen")
+    a.add_argument("--own", action="store_true", help="eigenes Zertifikat der Firma (aus deren Apple-Account)")
     a.set_defaults(func=cmd_add_certificate)
     ac = sub.add_parser("assign-certificate", help="Zertifikat einer Firma zuordnen")
     ac.add_argument("--tenant", required=True)

@@ -7,14 +7,15 @@ verschiedener Firmen nicht durcheinandergeraten.
 import base64
 import json
 
-from fastapi import APIRouter, Depends, Request
+from fastapi import APIRouter, Depends, File, Form, Request, UploadFile
 from fastapi.responses import RedirectResponse
 from sqlalchemy import Text, cast, func, or_, select
 from sqlalchemy.orm import Session
 
 from .. import placeholders, services
 from ..api.deps import ctx, get_session
-from ..models import (ApiKey, AuditLog, Certificate, Invitation, Job, Pass, Registration, Template, User,
+from ..certs import CertStoreError, import_certificate
+from ..models import (ApiKey, AuditLog, Certificate, Invitation, Job, Pass, Registration, Template, Tenant, User,
                       WebhookEndpoint, utcnow)
 from ..services import ServiceError
 from .admin import PLANS, render
@@ -22,7 +23,7 @@ from .core import admin_user, audit, check_csrf, flash
 
 router = APIRouter(prefix="/admin/tenants/{tenant_id}", include_in_schema=False, dependencies=[Depends(check_csrf)])
 
-TABS = [("overview", "Übersicht", ""), ("templates", "Vorlagen", "/templates"), ("passes", "Pässe", "/passes"),
+TABS = [("overview", "Übersicht", ""), ("certificate", "Zertifikat", "/certificate"), ("templates", "Vorlagen", "/templates"), ("passes", "Pässe", "/passes"),
         ("team", "Team", "/team"), ("integrations", "Integrationen", "/integrations"), ("jobs", "Jobs", "/jobs"),
         ("activity", "Aktivität", "/activity")]
 
@@ -69,10 +70,50 @@ def overview(tenant_id: str, request: Request, user: User = Depends(admin_user),
         "installed": session.scalar(select(func.count(Registration.id)).join(Pass).where(Pass.tenant_id == t.id)),
         "voided": session.scalar(select(func.count(Pass.id)).where(Pass.tenant_id == t.id, Pass.status == "voided")),
     }
-    certs = session.scalars(select(Certificate).order_by(Certificate.pass_type_identifier)).all()
     log = session.scalars(select(AuditLog).where(AuditLog.tenant_id == t.id)
                           .order_by(AuditLog.created_at.desc()).limit(6)).all()
-    return page(request, user, session, t, "overview", "overview", stats=stats, certs=certs, plans=PLANS, log=log)
+    return page(request, user, session, t, "overview", "overview", stats=stats, plans=PLANS, log=log, now=utcnow())
+
+
+# ---------------------------------------------------------------- Zertifikat
+
+@router.get("/certificate")
+def certificate(tenant_id: str, request: Request, user: User = Depends(admin_user),
+                session: Session = Depends(get_session)):
+    t = services.tenant_by_id(session, tenant_id)
+    standard = session.scalars(select(Certificate).where(Certificate.owner_tenant_id.is_(None))
+                               .order_by(Certificate.pass_type_identifier)).all()
+    own = session.scalars(select(Certificate).where(Certificate.owner_tenant_id == t.id)
+                          .order_by(Certificate.created_at.desc())).all()
+    usage = dict(session.execute(select(Tenant.certificate_id, func.count(Tenant.id))
+                                 .group_by(Tenant.certificate_id)).all())
+    return page(request, user, session, t, "certificate", "certificate", standard=standard, own=own, usage=usage,
+                now=utcnow())
+
+
+@router.post("/certificate/upload")
+async def certificate_upload(tenant_id: str, request: Request, p12: UploadFile = File(...), password: str = Form(""),
+                             activate: bool = Form(False), user: User = Depends(admin_user),
+                             session: Session = Depends(get_session)):
+    """Eigenes Zertifikat der Firma (aus deren Apple-Account) hochladen."""
+    t = services.tenant_by_id(session, tenant_id)
+    settings, signers, _ = ctx(request)
+    data = await p12.read()
+    if len(data) > 100_000:
+        return back(f"/admin/tenants/{t.id}/certificate", request, "Datei zu groß für ein .p12-Zertifikat.", "error")
+    try:
+        cert = import_certificate(session, signers.store, data, password, settings.wwdr_path, owner_tenant_id=t.id)
+    except CertStoreError as exc:
+        session.rollback()
+        return back(f"/admin/tenants/{t.id}/certificate", request, str(exc), "error")
+    signers.forget(cert.pass_type_identifier)
+    if activate:
+        t.certificate = cert
+    audit(session, user, "admin.certificate.own.import", t.id, cert.id, pass_type_identifier=cert.pass_type_identifier,
+          activated=activate)
+    session.commit()
+    return back(f"/admin/tenants/{t.id}/certificate", request,
+                f"Eigenes Zertifikat {cert.pass_type_identifier} gespeichert" + (" und aktiviert." if activate else "."))
 
 
 # ---------------------------------------------------------------- Vorlagen

@@ -104,11 +104,20 @@ def tenant_certificate(tenant_id: str, request: Request, certificate_id: str = F
                        user: User = Depends(admin_user), session: Session = Depends(get_session)):
     t = services.tenant_by_id(session, tenant_id)
     cert = session.get(Certificate, certificate_id) if certificate_id else None
+    if cert is not None and not cert.usable_by(t):
+        return back(f"/admin/tenants/{t.id}/certificate", request,
+                    "Dieses Zertifikat gehört einer anderen Firma und kann hier nicht verwendet werden.", "error")
+    if cert is not None and t.certificate_id != cert.id and session.scalar(
+            select(func.count(Pass.id)).where(Pass.tenant_id == t.id)):
+        flash(request, "Hinweis: Bereits ausgegebene Pässe bleiben bei ihrem bisherigen Zertifikat (Apple erkennt "
+                       "sie an der Pass Type ID) - es muss gültig bleiben, solange diese Pässe Updates bekommen sollen. "
+                       "Neue Pässe nutzen das neue Zertifikat.", "warn")
     t.certificate = cert
     audit(session, user, "admin.tenant.certificate", t.id, t.id,
           pass_type_identifier=cert.pass_type_identifier if cert else None)
     session.commit()
-    return back(f"/admin/tenants/{t.id}", request, "Zertifikat zugeordnet." if cert else "Zertifikat entfernt.")
+    return back(f"/admin/tenants/{t.id}/certificate", request,
+                "Zertifikat zugeordnet." if cert else "Zertifikat entfernt.")
 
 
 # ---------------------------------------------------------------- Prüfungen
@@ -183,7 +192,8 @@ def certificates(request: Request, user: User = Depends(admin_user), session: Se
     certs = session.scalars(select(Certificate).order_by(Certificate.expires_at)).all()
     usage = dict(session.execute(select(Tenant.certificate_id, func.count(Tenant.id))
                                  .group_by(Tenant.certificate_id)).all())
-    return render(request, "admin/certificates.html", user, certs=certs, usage=usage, now=utcnow())
+    names = dict(session.execute(select(Tenant.id, Tenant.name)).all())
+    return render(request, "admin/certificates.html", user, certs=certs, usage=usage, names=names, now=utcnow())
 
 
 @router.post("/certificates")

@@ -34,7 +34,8 @@ def _tag(dt):
 
 def _find_pass(session, pti, serial):
     return session.scalars(
-        select(Pass).join(Tenant, Pass.tenant_id == Tenant.id).join(Certificate, Tenant.certificate_id == Certificate.id)
+        select(Pass).join(Tenant, Pass.tenant_id == Tenant.id)
+        .join(Certificate, func.coalesce(Pass.certificate_id, Tenant.certificate_id) == Certificate.id)
         .where(Certificate.pass_type_identifier == pti, Pass.serial_number == serial)).first()
 
 
@@ -102,7 +103,8 @@ def unregister(device_id: str, pti: str, serial: str, request: Request, session:
 def updated_serials(device_id: str, pti: str, passesUpdatedSince: str | None = None,  # noqa: N803 - Apples Name
                     session: Session = Depends(get_session)):
     q = (select(Pass).join(Registration, Registration.pass_id == Pass.id).join(Device)
-         .join(Tenant, Pass.tenant_id == Tenant.id).join(Certificate, Tenant.certificate_id == Certificate.id)
+         .join(Tenant, Pass.tenant_id == Tenant.id)
+         .join(Certificate, func.coalesce(Pass.certificate_id, Tenant.certificate_id) == Certificate.id)
          .where(Device.device_library_identifier == device_id, Certificate.pass_type_identifier == pti))
     passes = session.scalars(q).all()
     if passesUpdatedSince and passesUpdatedSince.isdigit():

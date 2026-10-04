@@ -22,7 +22,7 @@ class MonitoringTests(ApiTestCase):
         body = r.text
         self.assertIn('wallet_passes{status="active"} 1.0', body)
         self.assertIn("wallet_passes_issued_total", body)
-        self.assertIn('wallet_certificate_expiry_seconds{pass_type_identifier="pass.com.example.test"}', body)
+        self.assertIn('wallet_certificate_expiry_seconds{kind="standard",pass_type_identifier="pass.com.example.test"}', body)
         self.assertIn('wallet_tenants{status="active"} 2.0', body)
         self.assertIn('route="/api/v1/passes"', body)
         self.assertIn("wallet_signing_seconds_bucket", body)

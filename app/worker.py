@@ -121,14 +121,15 @@ class Worker:
 
     def _push(self, s, payload):
         p = s.get(Pass, payload["pass_id"])
-        if p is None or p.tenant.certificate is None:
+        cert = (p.certificate or p.tenant.certificate) if p is not None else None
+        if cert is None:
             return
         regs = list(p.registrations)
         if payload.get("device_ids") is not None:
             regs = [r for r in regs if r.device_id in payload["device_ids"]]
         failed, last_reason = [], ""
         for reg in regs:
-            result, reason = self.pusher.send(p.tenant.certificate, reg.device.push_token)
+            result, reason = self.pusher.send(cert, reg.device.push_token)
             metrics.APNS_PUSHES.labels(result).inc()
             if result == apns.GONE:
                 log.info("Gerät abgemeldet (%s) - Registrierung entfernt", reason)

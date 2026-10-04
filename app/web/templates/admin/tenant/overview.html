@@ -1,6 +1,6 @@
 {% extends "admin/tenant/_layout.html" %}{% import "_ui.html" as ui %}
 {% block tenant %}
-{% if t.status == "pending" and not t.certificate %}<div class="msg warn">Vor dem Freischalten ein Zertifikat zuordnen – sonst kann die Firma keine Pässe ausgeben.</div>{% endif %}
+{% if t.status == "pending" and not t.certificate %}<div class="msg warn">Vor dem Freischalten ein <a href="/admin/tenants/{{ t.id }}/certificate">Zertifikat zuordnen</a> – sonst kann die Firma keine Pässe ausgeben.</div>{% endif %}
 <div class="kpis">
   <div class="kpi"><div class="l">Aktive Pässe</div><div class="n">{{ stats.active }}</div></div>
   <div class="kpi"><div class="l">In Wallets installiert</div><div class="n">{{ stats.installed }}</div></div>
@@ -29,15 +29,14 @@
   </div>
   <div class="stack">
     <div class="card">
-      <div class="card-h"><h2>Zertifikat</h2></div>
-      <div class="card-b">
-        <form method="post" action="/admin/tenants/{{ t.id }}/certificate">
-          <input type="hidden" name="csrf" value="{{ csrf }}">
-          <label class="f">Pass Type ID<select name="certificate_id"><option value="">– keins –</option>{% for c in certs %}<option value="{{ c.id }}" {{ "selected" if t.certificate_id == c.id }}>{{ c.pass_type_identifier }} (bis {{ c.expires_at | d }})</option>{% endfor %}</select></label>
-          <button>Zuordnen</button>
-        </form>
-        <p class="small muted">Empfehlung: eine eigene Pass Type ID pro Firma. Neue IDs unter <a href="/admin/certificates">Zertifikate</a>.</p>
-      </div>
+      <div class="card-h"><h2>Zertifikat</h2><a class="small" href="/admin/tenants/{{ t.id }}/certificate">Verwalten →</a></div>
+      {% if t.certificate %}
+      <table class="kv"><tbody>
+        <tr><td>Art</td><td>{{ ui.cert_kind(t.certificate) }}</td></tr>
+        <tr><td>Pass Type ID</td><td class="mono small">{{ t.certificate.pass_type_identifier }}</td></tr>
+        <tr><td>Gültig bis</td><td>{{ ui.cert_expiry(t.certificate) }}</td></tr>
+      </tbody></table>
+      {% else %}<div class="card-b"><p class="muted">Kein Zertifikat zugeordnet.</p><a class="btn small primary" href="/admin/tenants/{{ t.id }}/certificate">Zertifikat zuordnen</a></div>{% endif %}
     </div>
     <div class="card">
       <div class="card-h"><h2>Tarif</h2></div>

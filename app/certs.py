@@ -112,8 +112,11 @@ class SignerProvider:
             self._cache.pop(pti, None)
 
 
-def import_certificate(session, store, p12, password, wwdr_path):
-    """Prüft eine .p12-Datei, legt sie im Speicher ab und gibt den Datenbankeintrag zurück."""
+def import_certificate(session, store, p12, password, wwdr_path, owner_tenant_id=None):
+    """Prüft eine .p12-Datei, legt sie im Speicher ab und gibt den Datenbankeintrag zurück.
+
+    ``owner_tenant_id`` gesetzt: eigenes Zertifikat dieser Firma, sonst Standard-Zertifikat der Plattform.
+    """
     try:
         signer = load_signer(wwdr_path, p12=p12, password=password)
     except SigningError as exc:
@@ -121,10 +124,14 @@ def import_certificate(session, store, p12, password, wwdr_path):
     pti, team = signer.pass_type_identifier, signer.team_identifier
     if not pti or not team:
         raise CertStoreError("Das Zertifikat enthält keine Pass Type ID bzw. Team ID - ist es ein Pass-Zertifikat?")
-    store.save(pti, p12, password)
     cert = session.query(Certificate).filter_by(pass_type_identifier=pti).one_or_none()
+    if cert is not None and cert.owner_tenant_id != owner_tenant_id:
+        if cert.owner_tenant_id is None:
+            raise CertStoreError(f"{pti} ist bereits ein Standard-Zertifikat der Plattform.")
+        raise CertStoreError(f"{pti} gehört bereits einer anderen Firma.")
+    store.save(pti, p12, password)
     if cert is None:
-        cert = Certificate(pass_type_identifier=pti, team_identifier=team,
+        cert = Certificate(pass_type_identifier=pti, team_identifier=team, owner_tenant_id=owner_tenant_id,
                            expires_at=signer.certificate.not_valid_after_utc)
         session.add(cert)
     else:

@@ -1,22 +1,25 @@
 {% extends "base.html" %}{% import "_ui.html" as ui %}
 {% set area = "admin" %}{% set active = "certificates" %}{% set title = "Zertifikate" %}
 {% block content %}
-<div class="page-head"><div><h1>Zertifikate</h1><div class="sub">Private Schlüssel liegen verschlüsselt im Zertifikatsspeicher, nicht in der Datenbank.</div></div>
-  <div class="actions"><button class="primary" data-open="upload">{{ ui.icon("plus", 16) }} Zertifikat hochladen</button></div></div>
+<div class="page-head"><div><h1>Zertifikate</h1><div class="sub">Standard-Zertifikate aus deinem Apple-Account und eigene Zertifikate von Firmen. Private Schlüssel liegen verschlüsselt im Zertifikatsspeicher.</div></div>
+  <div class="actions"><button class="primary" data-open="upload">{{ ui.icon("plus", 16) }} Standard-Zertifikat hochladen</button></div></div>
 <div class="cols">
   <div class="card">
     {% if certs %}
-    <table><thead><tr><th>Pass Type ID</th><th>Team</th><th>Gültig bis</th><th class="right">Firmen</th></tr></thead>
-      <tbody>{% for c in certs %}<tr><td class="mono small">{{ c.pass_type_identifier }}</td><td>{{ c.team_identifier }}</td><td>{{ c.expires_at | d }}</td><td class="right">{{ usage.get(c.id, 0) }}</td></tr>{% endfor %}</tbody></table>
+    <table><thead><tr><th>Pass Type ID</th><th>Art</th><th>Team</th><th>Gültig bis</th><th class="right">Genutzt von</th></tr></thead>
+      <tbody>{% for c in certs %}<tr><td class="mono small">{{ c.pass_type_identifier }}</td>
+        <td>{{ ui.cert_kind(c) }}{% if c.owner_tenant_id %}<div class="small"><a href="/admin/tenants/{{ c.owner_tenant_id }}/certificate">{{ names.get(c.owner_tenant_id, "–") }}</a></div>{% endif %}</td>
+        <td>{{ c.team_identifier }}</td><td class="small">{{ ui.cert_expiry(c) }}</td><td class="right">{{ usage.get(c.id, 0) }} Firma/Firmen</td></tr>{% endfor %}</tbody></table>
     {% else %}{{ ui.empty("Noch keine Zertifikate.") }}{% endif %}
   </div>
   <div class="card"><div class="card-h"><h2>Neues Zertifikat</h2></div>
     <div class="card-b"><ol class="steps small">
       <li>Im <a href="https://developer.apple.com/account/resources/identifiers/list/passTypeId" target="_blank" rel="noopener">Apple-Developer-Portal</a> eine Pass Type ID anlegen, z. B. <code>pass.de.deinedienst.firma</code>.</li>
       <li>Zertifikat erzeugen, herunterladen und in der Schlüsselbundverwaltung mit Schlüssel als <code>.p12</code> exportieren.</li>
-      <li>Hier hochladen. Gleiche Pass Type ID ersetzt das alte Zertifikat ohne Ausfall.</li></ol></div></div>
+      <li>Hier hochladen. Gleiche Pass Type ID ersetzt das alte Zertifikat ohne Ausfall.</li></ol>
+      <p class="small muted">Eigene Zertifikate einer Firma lädst du im Firmenbereich unter „Zertifikat“ hoch.</p></div></div>
 </div>
-{% call ui.dialog("upload", "Zertifikat hochladen") %}
+{% call ui.dialog("upload", "Standard-Zertifikat hochladen") %}
 <form method="post" action="/admin/certificates" enctype="multipart/form-data">
   <input type="hidden" name="csrf" value="{{ csrf }}">
   <label class="f">.p12-Datei<input type="file" name="p12" accept=".p12,application/x-pkcs12" required></label>

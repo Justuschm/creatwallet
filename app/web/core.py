@@ -36,6 +36,18 @@ def _preview(data, n=3):
 
 templates.env.filters["preview"] = _preview
 
+
+def _days_left(dt):
+    from datetime import datetime, timezone
+
+    if dt is None:
+        return None
+    aware = dt.replace(tzinfo=timezone.utc) if dt.tzinfo is None else dt
+    return (aware - datetime.now(timezone.utc)).days
+
+
+templates.env.filters["days_left"] = _days_left
+
 ROLES = {
     "owner": "Inhaber",
     "admin": "Admin",

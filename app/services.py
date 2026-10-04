@@ -4,7 +4,7 @@ und Kommandozeile dieselben Regeln nutzen."""
 import copy
 import re
 
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.orm import object_session
 
 from creatwallet import validation as v
@@ -153,11 +153,11 @@ def list_templates(session, tenant):
 
 # ---------------------------------------------------------------- Pässe
 
-def platform_fields(pass_data, tenant, serial, auth_token, settings, voided):
+def platform_fields(pass_data, tenant, serial, auth_token, settings, voided, certificate=None):
     data = dict(pass_data)
     data["formatVersion"] = 1
     data["serialNumber"] = serial
-    cert = tenant.certificate
+    cert = certificate or tenant.certificate
     if cert is not None:
         data["passTypeIdentifier"] = cert.pass_type_identifier
         data["teamIdentifier"] = cert.team_identifier
@@ -186,16 +186,22 @@ def _require_issuable(tenant, template):
         raise ServiceError(409, "Die Vorlage ist noch nicht freigegeben.")
 
 
+def pass_certificate(pass_obj):
+    """Zertifikat eines Passes: das bei der Ausgabe festgehaltene, für alte Pässe das der Firma."""
+    return pass_obj.certificate or pass_obj.tenant.certificate
+
+
 def build_pass(pass_obj, settings, signers, vault, source="api"):
     """Signierte .pkpass-Datei für einen Pass erzeugen (aktuelle freigegebene Vorlage)."""
     tenant, template = pass_obj.tenant, pass_obj.template
     _require_issuable(tenant, template)
+    cert = pass_certificate(pass_obj)
     version = template.approved_version
     rendered = placeholders.render(version.pass_json, pass_obj.data)
     data = platform_fields(rendered, tenant, pass_obj.serial_number, vault.decrypt(pass_obj.auth_token_enc),
-                            settings, pass_obj.status == "voided")
+                            settings, pass_obj.status == "voided", certificate=cert)
     try:
-        signer = signers.get(tenant.certificate)
+        signer = signers.get(cert)
     except CertStoreError as exc:
         raise ServiceError(503, f"Signieren nicht möglich: {exc}") from exc
     try:
@@ -236,7 +242,8 @@ def create_pass(session, tenant, template_id, data, settings, signers, vault, se
         raise ServiceError(422, "serial_number: 1-100 Zeichen, nur Buchstaben, Ziffern, Punkt, Minus, Unterstrich.")
     elif serial_taken(session, tenant, serial_number):
         raise ServiceError(409, f"Seriennummer {serial_number} ist bereits vergeben.")
-    pass_obj = Pass(tenant=tenant, template=template, serial_number=str(serial_number), data=data,
+    pass_obj = Pass(tenant=tenant, template=template, certificate=tenant.certificate,
+                    serial_number=str(serial_number), data=data,
                     download_token=random_token(24), auth_token_enc=vault.encrypt(random_token(24)),
                     idempotency_key=idempotency_key)
     build_pass(pass_obj, settings, signers, vault, source="check")  # prüft vollständig, bevor gespeichert wird
@@ -250,7 +257,7 @@ def serial_taken(session, tenant, serial):
     """Apple adressiert Pässe über Pass Type ID + Seriennummer: eindeutig je Zertifikat, nicht nur je Firma."""
     q = select(Pass.id).join(Tenant, Pass.tenant_id == Tenant.id).where(Pass.serial_number == str(serial))
     if tenant.certificate_id:
-        q = q.where(Tenant.certificate_id == tenant.certificate_id)
+        q = q.where(func.coalesce(Pass.certificate_id, Tenant.certificate_id) == tenant.certificate_id)
     else:
         q = q.where(Pass.tenant_id == tenant.id)
     return session.scalars(q).first() is not None
